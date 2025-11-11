@@ -1,0 +1,360 @@
+
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user profile in the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user.",
+          "format": "uuid"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The display name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile photo.",
+          "format": "uri"
+        },
+        "bio": {
+          "type": "string",
+          "description": "A short biography or description of the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user account was created.",
+          "format": "date-time"
+        },
+        "privacyDefault": {
+          "type": "string",
+          "description": "Default privacy setting for the user's trips ('private', 'public', or 'friends')."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "The timezone of the user."
+        }
+      },
+      "required": [
+        "id",
+        "displayName",
+        "email",
+        "createdAt",
+        "privacyDefault",
+        "timezone"
+      ]
+    },
+    "Trip": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Trip",
+      "type": "object",
+      "description": "Represents a travel trip logged by a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the trip.",
+          "format": "uuid"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Reference to the User who owns this trip. (Relationship: User 1:N Trip)"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the trip."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The start date of the trip.",
+          "format": "date-time"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "The end date of the trip.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the trip."
+        },
+        "coverPhoto": {
+          "type": "string",
+          "description": "URL of the cover photo for the trip.",
+          "format": "uri"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the trip was created.",
+          "format": "date-time"
+        },
+        "visibility": {
+          "type": "string",
+          "description": "The visibility setting of the trip ('private', 'public', or 'shared')."
+        },
+        "sharedWith": {
+          "type": "array",
+          "description": "An array of User IDs that this trip is shared with. (Relationship: User N:N Trip)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "title",
+        "startDate",
+        "endDate",
+        "description",
+        "createdAt",
+        "visibility"
+      ]
+    },
+    "Entry": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Entry",
+      "type": "object",
+      "description": "Represents a single entry or journal entry within a trip.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the entry.",
+          "format": "uuid"
+        },
+        "tripId": {
+          "type": "string",
+          "description": "Reference to the Trip this entry belongs to. (Relationship: Trip 1:N Entry)"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the entry."
+        },
+        "content": {
+          "type": "string",
+          "description": "The content of the entry (rich text or markdown)."
+        },
+        "locationName": {
+          "type": "string",
+          "description": "The location name for the entry."
+        },
+        "locationLat": {
+          "type": "number",
+          "description": "The latitude of the location for the entry."
+        },
+        "locationLng": {
+          "type": "number",
+          "description": "The longitude of the location for the entry."
+        },
+        "media": {
+          "type": "array",
+          "description": "An array of URLs or storage paths to media files associated with the entry.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the entry was created.",
+          "format": "date-time"
+        },
+        "visitedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the location was visited.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "tripId",
+        "title",
+        "content",
+        "createdAt",
+        "visitedAt",
+        "locationName",
+        "locationLat",
+        "locationLng"
+      ]
+    },
+    "Route": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Route",
+      "type": "object",
+      "description": "Represents the route taken during a trip.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the route.",
+          "format": "uuid"
+        },
+        "tripId": {
+          "type": "string",
+          "description": "Reference to the Trip this route belongs to. (Relationship: Trip 1:N Route)"
+        },
+        "points": {
+          "type": "array",
+          "description": "An array of latitude, longitude, and timestamp points representing the route.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "distanceMeters": {
+          "type": "number",
+          "description": "The distance of the route in meters."
+        },
+        "polyline": {
+          "type": "string",
+          "description": "An encoded polyline representation of the route."
+        }
+      },
+      "required": [
+        "id",
+        "tripId",
+        "points",
+        "distanceMeters"
+      ]
+    },
+    "Comment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Comment",
+      "type": "object",
+      "description": "Represents a comment on a specific trip entry.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the comment.",
+          "format": "uuid"
+        },
+        "entryId": {
+          "type": "string",
+          "description": "Reference to the Entry this comment belongs to. (Relationship: Entry 1:N Comment)"
+        },
+        "authorId": {
+          "type": "string",
+          "description": "Reference to the User who wrote the comment. (Relationship: User 1:N Comment)"
+        },
+        "text": {
+          "type": "string",
+          "description": "The text content of the comment."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the comment was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "entryId",
+        "authorId",
+        "text",
+        "createdAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous",
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "rules": "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    // User Profiles\n    match /users/{userId} {\n      allow read, write: if request.auth != null && request.auth.uid == userId;\n    }\n\n    // Trips\n    match /trips/{tripId} {\n      // Anyone can read a public trip, logged-in users can read trips they own or are shared on.\n      allow get: if resource.data.visibility == 'public' || \n                   (request.auth != null && (\n                     resource.data.ownerId == request.auth.uid || \n                     (resource.data.sharedWith != null && request.auth.uid in resource.data.sharedWith)\n                   ));\n\n      // Logged-in users can query the trips collection. \n      // The queries in the app will filter for public trips or trips owned/shared with the user.\n      allow list: if request.auth != null;\n\n      // Only the owner can create, update, or delete a trip.\n      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;\n      allow update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;\n      \n      // Entries subcollection\n      match /entries/{entryId} {\n        // Read access for authenticated users, further filtering is done in the app.\n        allow get, list: if request.auth != null;\n\n        // Only the trip owner or original entry author can write to an entry.\n        allow create, update, delete: if request.auth != null && (\n                                     request.auth.uid == get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId ||\n                                     request.auth.uid == resource.data.authorId\n                                  );\n\n        // Comments subcollection\n        match /comments/{commentId} {\n            // Allow read if the trip the comment belongs to is public or user has access.\n            allow read: if get(/databases/$(database)/documents/trips/$(tripId)).data.visibility == 'public' ||\n                          (request.auth != null && (\n                            get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid ||\n                            (get(/databases/$(database)/documents/trips/$(tripId)).data.sharedWith != null && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.sharedWith)\n                          ));\n\n            // Only authenticated users can create comments.\n            allow create: if request.auth != null && request.auth.uid == request.resource.data.authorId;\n\n            // Only the author can update/delete their own comment.\n            allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorId;\n        }\n      }\n    }\n\n    // Routes\n    match /routes/{routeId} {\n      // Access is controlled based on the associated trip's permissions.\n      allow read, write: if request.auth != null && get(/databases/$(database)/documents/trips/$(resource.data.tripId)).data.ownerId == request.auth.uid;\n    }\n  }\n}",
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Only the authenticated user can read/write their own profile.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (auth.uid)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/trips/{tripId}",
+        "definition": {
+          "entityName": "Trip",
+          "schema": {
+            "$ref": "#/backend/entities/Trip"
+          },
+          "description": "Stores trip information. Users can read public trips, their own trips, or trips shared with them. They can only write to trips they own.",
+          "params": [
+            {
+              "name": "tripId",
+              "description": "The unique identifier of the trip."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/trips/{tripId}/entries/{entryId}",
+        "definition": {
+          "entityName": "Entry",
+          "schema": {
+            "$ref": "#/backend/entities/Entry"
+          },
+          "description": "Stores trip entries. Authorization is based on the parent trip's ownership and visibility.",
+          "params": [
+            {
+              "name": "tripId",
+              "description": "The unique identifier of the trip."
+            },
+            {
+              "name": "entryId",
+              "description": "The unique identifier of the entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/routes/{routeId}",
+        "definition": {
+          "entityName": "Route",
+          "schema": {
+            "$ref": "#/backend/entities/Route"
+          },
+          "description": "Stores route data associated with a specific trip.",
+          "params": [
+            {
+              "name": "routeId",
+              "description": "The unique identifier of the route."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/comments/{commentId}",
+        "definition": {
+          "entityName": "Comment",
+          "schema": {
+            "$ref": "#/backend/entities/Comment"
+          },
+          "description": "Stores comments on trip entries. Allows querying comments across entries and trips.",
+          "params": [
+            {
+              "name": "commentId",
+              "description": "The unique identifier of the comment."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability for the WanderLust application. We leverage a top-level 'trips' collection to simplify queries for public, shared, and owned trips. The core entities (Users, Trips, Entries, Routes, and Comments) are organized in a way that mirrors their relationships while optimizing for security and query performance.\n\n*   **/users/{userId}**: Stores user profiles. Security rules will ensure that only the authenticated user can read and write their own profile.\n*   **/trips/{tripId}**: This top-level collection stores all trip documents. This structure is efficient for querying across all trips (e.g., for the public explore page). Security rules will manage access: a user can read a document if `visibility == 'public'`, if `ownerId == request.auth.uid`, or if their `uid` is in the `sharedWith` array. Write access is restricted to the trip owner.\n*   **/trips/{tripId}/entries/{entryId}**: This continues the ownership pattern, with entries nested under trips. Security rules will be based on the parent trip's ownership and visibility settings, requiring a `get()` call to the parent trip document to check for read access. This is a standard and secure pattern for nested data. Write access to entries is limited to the trip owner or users the trip is shared with.\n*   **/routes/{routeId}**: Stores route data in a top-level collection. Route documents include a `tripId` field. This segregation allows routes to be queried independently if needed while security rules will check the referenced trip's ownership to grant access.\n*   **/comments/{commentId}**: Stores comments on entries in a top-level collection. The comment document includes an `entryId` and `tripId`. This structure simplifies querying comments and allows security rules to check the parent trip's visibility for read access."
+  }
+}

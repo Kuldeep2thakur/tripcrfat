@@ -1,0 +1,64 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-image",
+      "description": "A stunning landscape view of mountains and a lake, representing travel and adventure.",
+      "imageUrl": "https://images.unsplash.com/photo-1638544576933-d2bdf36ef947?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxsYW5kc2NhcGUlMjBtb3VudGFpbnN8ZW58MHx8fHwxNzU5MzM3NzAzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "landscape mountains"
+    },
+    {
+      "id": "trip-cover-1",
+      "description": "A bustling city street in Tokyo at night.",
+      "imageUrl": "https://images.unsplash.com/photo-1513061379709-ef0cd1695189?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjaXR5JTIwbmlnaHR8ZW58MHx8fHwxNzU5MzQ5MTExfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "city night"
+    },
+    {
+      "id": "trip-cover-2",
+      "description": "The Eiffel Tower in Paris on a sunny day.",
+      "imageUrl": "https://images.unsplash.com/photo-1565881606991-789a8dff9dbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxlaWZmZWwlMjB0b3dlcnxlbnwwfHx8fDE3NTk0MTk0OTJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "eiffel tower"
+    },
+    {
+      "id": "trip-cover-3",
+      "description": "Ancient ruins in Rome, Italy.",
+      "imageUrl": "https://images.unsplash.com/photo-1717518213995-455025e3b0bf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxhbmNpZW50JTIwcnVpbnN8ZW58MHx8fHwxNzU5NDI2MDgyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "ancient ruins"
+    },
+    {
+      "id": "trip-cover-4",
+      "description": "A beautiful beach in Bali, Indonesia.",
+      "imageUrl": "https://images.unsplash.com/photo-1518022525094-218670c9b745?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxiZWFjaCUyMHN1bnNldHxlbnwwfHx8fDE3NTkzNjI4OTJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "beach sunset"
+    },
+    {
+      "id": "trip-cover-5",
+      "description": "The grand canyon national park.",
+      "imageUrl": "https://images.unsplash.com/photo-1543266502-7a301a17e75e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Z3JhbmQlMjBjYW55b258ZW58MHx8fHwxNzU5MzM5ODY0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "grand canyon"
+    },
+    {
+      "id": "trip-cover-6",
+      "description": "A view of the Sydney Opera House and Harbour Bridge.",
+      "imageUrl": "https://images.unsplash.com/photo-1567540593970-f2f4d024cddc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxzeWRuZXklMjBvcGVyYXxlbnwwfHx8fDE3NTkzMzU5Mzd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "sydney opera"
+    },
+    {
+      "id": "avatar-1",
+      "description": "Avatar for Asha Traveler.",
+      "imageUrl": "https://images.unsplash.com/photo-1580489944761-15a19d654956?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHx3b21hbiUyMHBvcnRyYWl0fGVufDB8fHx8MTc1OTM5NjU1MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "avatar-2",
+      "description": "Avatar for a friend of Asha.",
+      "imageUrl": "https://images.unsplash.com/photo-1560250097-0b93528c311a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxtYW4lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NTkzNjQ5MDN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "avatar-3",
+      "description": "Avatar for another friend of Asha.",
+      "imageUrl": "https://images.unsplash.com/photo-1580489944761-15a19d654956?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxwZXJzb24lMjBzbWlsaW5nfGVufDB8fHx8MTc1OTQxNTUyM3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person smiling"
+    }
+  ]
+}
