@@ -5,9 +5,10 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, orderBy, addDoc, limit, serverTimestamp, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc } from 'firebase/firestore';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { Button } from '@/components/ui/button';
-import { Plus, Video, Loader2, Heart, MessageCircle, Share2, Play, Volume2, VolumeX, X, Music, Type, Smile, ChevronRight, Check, MapPin, Upload, Palette, Sparkles, Bookmark } from 'lucide-react';
+import { Plus, Video, Loader2, Heart, MessageCircle, Share2, Play, Volume2, VolumeX, X, Music, Type, Smile, ChevronRight, Check, MapPin, Upload, Palette, Sparkles, Bookmark, Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 
 interface Reel {
@@ -34,6 +35,16 @@ interface Reel {
     sticker?: string;
     stickerPos?: { x: number, y: number };
     musicTrack?: string;
+}
+
+interface Comment {
+    id: string;
+    authorId: string;
+    authorName: string;
+    authorPhoto?: string;
+    text: string;
+    createdAt: any;
+    parentCommentId?: string; // For replies
 }
 
 const MUSIC_TRACKS = ["Chill Lo-Fi", "Summer Vibes", "Travel Pop", "Upbeat Energy"];
@@ -66,6 +77,158 @@ const ANIMATIONS = [
     { name: 'Pulse', class: 'animate-pulse' },
     { name: 'Spin', class: 'animate-in spin-in-1 duration-1000' },
 ];
+
+// Helper function to create notification
+async function createNotification(firestore: any, data: {
+    userId: string;
+    type: 'like' | 'comment' | 'follow';
+    actorId: string;
+    actorName: string;
+    actorPhoto?: string;
+    postId?: string;
+    postType?: 'reel' | 'story';
+    message: string;
+}) {
+    try {
+        await addDoc(collection(firestore, 'notifications'), {
+            ...data,
+            read: false,
+            createdAt: serverTimestamp(),
+        });
+    } catch (err) {
+        console.error('Failed to create notification:', err);
+    }
+}
+
+function ReelComments({ reelId, reelAuthorId }: { reelId: string; reelAuthorId: string }) {
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const [commentText, setCommentText] = useState('');
+    const [isSending, setIsSending] = useState(false);
+    const [replyTo, setReplyTo] = useState<Comment | null>(null);
+
+    const commentsQuery = useMemoFirebase(() => {
+        if (!firestore || !reelId) return null;
+        return query(
+            collection(firestore, 'reels', reelId, 'comments'),
+            orderBy('createdAt', 'desc')
+        );
+    }, [firestore, reelId]);
+
+    const { data: comments } = useCollection<Comment>(commentsQuery);
+
+    const handleSendComment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!commentText.trim() || !user || !firestore) return;
+
+        setIsSending(true);
+        try {
+            await addDoc(collection(firestore, 'reels', reelId, 'comments'), {
+                authorId: user.uid,
+                authorName: user.displayName || 'User',
+                authorPhoto: user.photoURL,
+                text: commentText.trim(),
+                parentCommentId: replyTo?.id || null,
+                createdAt: serverTimestamp(),
+            });
+
+            // Create notification for reel author (if not commenting on own reel)
+            if (user.uid !== reelAuthorId) {
+                await createNotification(firestore, {
+                    userId: reelAuthorId,
+                    type: 'comment',
+                    actorId: user.uid,
+                    actorName: user.displayName || 'User',
+                    actorPhoto: user.photoURL || undefined,
+                    postId: reelId,
+                    postType: 'reel',
+                    message: replyTo ? `replied to a comment on your reel` : 'commented on your reel',
+                });
+            }
+
+            setCommentText('');
+            setReplyTo(null);
+        } catch (error) {
+            console.error("Failed to post comment", error);
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    // Group comments by parent
+    const topLevelComments = comments?.filter(c => !c.parentCommentId) || [];
+    const getReplies = (commentId: string) => comments?.filter(c => c.parentCommentId === commentId) || [];
+
+    return (
+        <div className="flex flex-col h-full bg-black/90 backdrop-blur-xl text-white">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+                {topLevelComments.length === 0 && (
+                    <div className="text-center text-white/40 mt-10 text-sm">No comments yet.</div>
+                )}
+                {topLevelComments.map((comment) => (
+                    <div key={comment.id} className="space-y-2">
+                        <div className="flex gap-3 items-start animate-fade-in">
+                            <Avatar className="w-8 h-8 border border-white/20">
+                                <AvatarImage src={comment.authorPhoto} />
+                                <AvatarFallback className="text-black text-xs">{comment.authorName[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col flex-1">
+                                <span className="text-xs font-bold text-white/90">{comment.authorName}</span>
+                                <p className="text-sm text-white/80">{comment.text}</p>
+                                <button
+                                    onClick={() => setReplyTo(comment)}
+                                    className="text-xs text-white/50 hover:text-white/70 mt-1 w-fit"
+                                >
+                                    Reply
+                                </button>
+                            </div>
+                        </div>
+                        {/* Replies */}
+                        {getReplies(comment.id).map((reply) => (
+                            <div key={reply.id} className="flex gap-3 items-start ml-11 animate-fade-in">
+                                <Avatar className="w-6 h-6 border border-white/20">
+                                    <AvatarImage src={reply.authorPhoto} />
+                                    <AvatarFallback className="text-black text-[10px]">{reply.authorName[0]}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-white/90">{reply.authorName}</span>
+                                    <p className="text-xs text-white/70">{reply.text}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ))}
+            </div>
+            <form onSubmit={handleSendComment} className="p-3 border-t border-white/10 bg-black/50 space-y-2">
+                {replyTo && (
+                    <div className="flex items-center justify-between px-3 py-1 bg-white/10 rounded-lg">
+                        <span className="text-xs text-white/60">Replying to {replyTo.authorName}</span>
+                        <button type="button" onClick={() => setReplyTo(null)} className="text-white/60 hover:text-white">
+                            <X className="w-3 h-3" />
+                        </button>
+                    </div>
+                )}
+                <div className="flex gap-2">
+                    <Input
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder={user ? "Add a comment..." : "Log in to comment"}
+                        disabled={!user || isSending}
+                        className="bg-white/10 border-none text-white placeholder:text-white/40 h-10 rounded-full focus-visible:ring-1 focus-visible:ring-white/30"
+                    />
+                    <Button
+                        type="submit"
+                        size="icon"
+                        disabled={!commentText.trim() || isSending}
+                        className="rounded-full bg-pink-500 hover:bg-pink-600 text-white h-10 w-10 shrink-0"
+                    >
+                        {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </Button>
+                </div>
+            </form>
+        </div>
+    );
+}
 
 export function ReelsGrid() {
     const { user } = useUser();
@@ -221,6 +384,19 @@ export function ReelsGrid() {
                 await updateDoc(reelRef, { likes: arrayRemove(user.uid) });
             } else {
                 await updateDoc(reelRef, { likes: arrayUnion(user.uid) });
+                // Create notification if not liking own reel
+                if (user.uid !== reel.authorId) {
+                    await createNotification(firestore, {
+                        userId: reel.authorId,
+                        type: 'like',
+                        actorId: user.uid,
+                        actorName: user.displayName || 'User',
+                        actorPhoto: user.photoURL || undefined,
+                        postId: reel.id,
+                        postType: 'reel',
+                        message: 'liked your reel',
+                    });
+                }
             }
         } catch (error) {
             console.error("Like failed", error);
@@ -656,7 +832,20 @@ export function ReelsGrid() {
                                         </div>
                                         <span className="text-[10px] text-white font-bold drop-shadow-md">{selectedReel.likes?.length || 'Like'}</span>
                                     </button>
-                                    <button className="flex flex-col items-center gap-1 group"><div className="p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 group-hover:bg-blue-500/80 transition-all shadow-lg active:scale-90 flex items-center justify-center w-12 h-12"><MessageCircle className="w-6 h-6 text-white group-hover:scale-110 transition-transform" /></div><span className="text-[10px] text-white font-bold drop-shadow-md">Chat</span></button>
+                                    <Sheet>
+                                        <SheetTrigger asChild>
+                                            <button className="flex flex-col items-center gap-1 group">
+                                                <div className="p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 group-hover:bg-blue-500/80 transition-all shadow-lg active:scale-90 flex items-center justify-center w-12 h-12">
+                                                    <MessageCircle className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
+                                                </div>
+                                                <span className="text-[10px] text-white font-bold drop-shadow-md">Comments</span>
+                                            </button>
+                                        </SheetTrigger>
+                                        <SheetContent side="bottom" className="h-[60vh] sm:h-[500px] p-0 border-0 rounded-t-3xl sm:rounded-3xl m-0 sm:m-4 bg-transparent shadow-none">
+                                            <SheetTitle className="sr-only">Comments</SheetTitle>
+                                            <ReelComments reelId={selectedReel.id} reelAuthorId={selectedReel.authorId} />
+                                        </SheetContent>
+                                    </Sheet>
                                     <button className="flex flex-col items-center gap-1 group" onClick={(e) => handleShare(e, selectedReel)}><div className="p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 group-hover:bg-green-500/80 transition-all shadow-lg active:scale-90 flex items-center justify-center w-12 h-12"><Share2 className="w-6 h-6 text-white group-hover:scale-110 transition-transform" /></div><span className="text-[10px] text-white font-bold drop-shadow-md">Share</span></button>
                                     <button className="flex flex-col items-center gap-1 group" onClick={(e) => handleToggleSave(e, selectedReel)}>
                                         <div className={`p-3 rounded-full backdrop-blur-md border transition-all shadow-lg active:scale-90 flex items-center justify-center w-12 h-12 ${savedReels.includes(selectedReel.id) ? 'bg-white border-white' : 'bg-black/40 border-white/10 group-hover:bg-white/20'}`}>

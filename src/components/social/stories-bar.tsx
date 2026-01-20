@@ -43,6 +43,29 @@ interface Comment {
     authorPhoto?: string;
     text: string;
     createdAt: any;
+    parentCommentId?: string; // For replies
+}
+
+// Helper function to create notification
+async function createNotification(firestore: any, data: {
+    userId: string;
+    type: 'like' | 'comment' | 'follow';
+    actorId: string;
+    actorName: string;
+    actorPhoto?: string;
+    postId?: string;
+    postType?: 'reel' | 'story';
+    message: string;
+}) {
+    try {
+        await addDoc(collection(firestore, 'notifications'), {
+            ...data,
+            read: false,
+            createdAt: serverTimestamp(),
+        });
+    } catch (err) {
+        console.error('Failed to create notification:', err);
+    }
 }
 
 const MUSIC_TRACKS = ["Chill Lo-Fi", "Summer Vibes", "Travel Pop", "Upbeat Energy"];
@@ -76,11 +99,12 @@ const ANIMATIONS = [
     { name: 'Spin', class: 'animate-in spin-in-1 duration-1000' },
 ];
 
-function StoryComments({ storyId }: { storyId: string }) {
+function StoryComments({ storyId, storyAuthorId }: { storyId: string; storyAuthorId: string }) {
     const firestore = useFirestore();
     const { user } = useUser();
     const [commentText, setCommentText] = useState('');
     const [isSending, setIsSending] = useState(false);
+    const [replyTo, setReplyTo] = useState<Comment | null>(null);
 
     const commentsQuery = useMemoFirebase(() => {
         if (!firestore || !storyId) return null;
@@ -103,9 +127,26 @@ function StoryComments({ storyId }: { storyId: string }) {
                 authorName: user.displayName || 'User',
                 authorPhoto: user.photoURL,
                 text: commentText.trim(),
+                parentCommentId: replyTo?.id || null,
                 createdAt: serverTimestamp(),
             });
+
+            // Create notification for story author (if not commenting on own story)
+            if (user.uid !== storyAuthorId) {
+                await createNotification(firestore, {
+                    userId: storyAuthorId,
+                    type: 'comment',
+                    actorId: user.uid,
+                    actorName: user.displayName || 'User',
+                    actorPhoto: user.photoURL || undefined,
+                    postId: storyId,
+                    postType: 'story',
+                    message: replyTo ? `replied to a comment on your story` : 'commented on your story',
+                });
+            }
+
             setCommentText('');
+            setReplyTo(null);
         } catch (error) {
             console.error("Failed to post comment", error);
         } finally {
@@ -113,41 +154,76 @@ function StoryComments({ storyId }: { storyId: string }) {
         }
     };
 
+    // Group comments by parent
+    const topLevelComments = comments?.filter(c => !c.parentCommentId) || [];
+    const getReplies = (commentId: string) => comments?.filter(c => c.parentCommentId === commentId) || [];
+
     return (
         <div className="flex flex-col h-full bg-black/90 backdrop-blur-xl text-white">
             <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-                {comments?.length === 0 && (
+                {topLevelComments.length === 0 && (
                     <div className="text-center text-white/40 mt-10 text-sm">No comments yet.</div>
                 )}
-                {comments?.map((comment) => (
-                    <div key={comment.id} className="flex gap-3 items-start animate-fade-in">
-                        <Avatar className="w-8 h-8 border border-white/20">
-                            <AvatarImage src={comment.authorPhoto} />
-                            <AvatarFallback className="text-black text-xs">{comment.authorName[0]}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                            <span className="text-xs font-bold text-white/90">{comment.authorName}</span>
-                            <p className="text-sm text-white/80">{comment.text}</p>
+                {topLevelComments.map((comment) => (
+                    <div key={comment.id} className="space-y-2">
+                        <div className="flex gap-3 items-start animate-fade-in">
+                            <Avatar className="w-8 h-8 border border-white/20">
+                                <AvatarImage src={comment.authorPhoto} />
+                                <AvatarFallback className="text-black text-xs">{comment.authorName[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col flex-1">
+                                <span className="text-xs font-bold text-white/90">{comment.authorName}</span>
+                                <p className="text-sm text-white/80">{comment.text}</p>
+                                <button
+                                    onClick={() => setReplyTo(comment)}
+                                    className="text-xs text-white/50 hover:text-white/70 mt-1 w-fit"
+                                >
+                                    Reply
+                                </button>
+                            </div>
                         </div>
+                        {/* Replies */}
+                        {getReplies(comment.id).map((reply) => (
+                            <div key={reply.id} className="flex gap-3 items-start ml-11 animate-fade-in">
+                                <Avatar className="w-6 h-6 border border-white/20">
+                                    <AvatarImage src={reply.authorPhoto} />
+                                    <AvatarFallback className="text-black text-[10px]">{reply.authorName[0]}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-white/90">{reply.authorName}</span>
+                                    <p className="text-xs text-white/70">{reply.text}</p>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ))}
             </div>
-            <form onSubmit={handleSendComment} className="p-3 border-t border-white/10 bg-black/50 flex gap-2">
-                <Input
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder={user ? "Add a comment..." : "Log in to comment"}
-                    disabled={!user || isSending}
-                    className="bg-white/10 border-none text-white placeholder:text-white/40 h-10 rounded-full focus-visible:ring-1 focus-visible:ring-white/30"
-                />
-                <Button
-                    type="submit"
-                    size="icon"
-                    disabled={!commentText.trim() || isSending}
-                    className="rounded-full bg-orange-500 hover:bg-orange-600 text-white h-10 w-10 shrink-0"
-                >
-                    {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                </Button>
+            <form onSubmit={handleSendComment} className="p-3 border-t border-white/10 bg-black/50 space-y-2">
+                {replyTo && (
+                    <div className="flex items-center justify-between px-3 py-1 bg-white/10 rounded-lg">
+                        <span className="text-xs text-white/60">Replying to {replyTo.authorName}</span>
+                        <button type="button" onClick={() => setReplyTo(null)} className="text-white/60 hover:text-white">
+                            <X className="w-3 h-3" />
+                        </button>
+                    </div>
+                )}
+                <div className="flex gap-2">
+                    <Input
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder={user ? "Add a comment..." : "Log in to comment"}
+                        disabled={!user || isSending}
+                        className="bg-white/10 border-none text-white placeholder:text-white/40 h-10 rounded-full focus-visible:ring-1 focus-visible:ring-white/30"
+                    />
+                    <Button
+                        type="submit"
+                        size="icon"
+                        disabled={!commentText.trim() || isSending}
+                        className="rounded-full bg-orange-500 hover:bg-orange-600 text-white h-10 w-10 shrink-0"
+                    >
+                        {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </Button>
+                </div>
             </form>
         </div>
     );
@@ -318,6 +394,19 @@ export function StoriesBar() {
                 await updateDoc(storyRef, { likes: arrayRemove(user.uid) });
             } else {
                 await updateDoc(storyRef, { likes: arrayUnion(user.uid) });
+                // Create notification if not liking own story
+                if (user.uid !== selectedStory.authorId) {
+                    await createNotification(firestore, {
+                        userId: selectedStory.authorId,
+                        type: 'like',
+                        actorId: user.uid,
+                        actorName: user.displayName || 'User',
+                        actorPhoto: user.photoURL || undefined,
+                        postId: selectedStory.id,
+                        postType: 'story',
+                        message: 'liked your story',
+                    });
+                }
             }
         } catch (error) {
             console.error("Like failed", error);
@@ -655,7 +744,7 @@ export function StoriesBar() {
                                     </SheetTrigger>
                                     <SheetContent side="bottom" className="h-[60vh] sm:h-[500px] p-0 border-0 rounded-t-3xl sm:rounded-3xl m-0 sm:m-4 bg-transparent shadow-none">
                                         <SheetTitle className="sr-only">Comments</SheetTitle>
-                                        <StoryComments storyId={selectedStory.id} />
+                                        <StoryComments storyId={selectedStory.id} storyAuthorId={selectedStory.authorId} />
                                     </SheetContent>
                                 </Sheet>
                             </div>
