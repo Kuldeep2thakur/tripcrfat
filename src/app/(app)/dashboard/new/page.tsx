@@ -10,7 +10,8 @@ import {
   useEffect
 } from "react";
 import {
-  addDoc
+  addDoc,
+  serverTimestamp
 } from "firebase/firestore";
 import {
   z
@@ -113,7 +114,7 @@ const visibilityOptions = [{
 }, {
   label: "Shared",
   value: "shared"
-}, ]
+},]
 
 export default function NewTripPage() {
   const {
@@ -124,7 +125,7 @@ export default function NewTripPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const form = useForm < z.infer < typeof NewTripFormSchema >> ({
+  const form = useForm<z.infer<typeof NewTripFormSchema>>({
     resolver: zodResolver(NewTripFormSchema),
     defaultValues: {
       title: "",
@@ -139,7 +140,7 @@ export default function NewTripPage() {
     }
   }, [user, isUserLoading, router]);
 
-  const onSubmit = async (data: z.infer < typeof NewTripFormSchema > ) => {
+  const onSubmit = async (data: z.infer<typeof NewTripFormSchema>) => {
     if (!user || !firestore) return;
 
     console.log('Form submitted with data:', data);
@@ -164,6 +165,8 @@ export default function NewTripPage() {
         ownerId: user.uid,
         coverPhotoId: !coverPhotoURL ? 'trip-cover-1' : 'uploaded-cover',
         coverPhotoURL: coverPhotoURL || '/placeholder-trip.jpg',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
 
       // Only add location if it exists and is not undefined
@@ -177,17 +180,17 @@ export default function NewTripPage() {
       console.log('Trip data being saved:', newTripData);
 
       const tripsCollection = collection(firestore, `users/${user.uid}/trips`);
-      
+
       const docRef = await addDoc(tripsCollection, newTripData);
       console.log('Trip created with ID:', docRef.id);
 
       toast({
-          title: "Trip Created!",
-          description: newTripData.location 
-            ? "Your trip with location has been saved. Check the map to see it!" 
-            : "Your new trip has been successfully created.",
+        title: "Trip Created!",
+        description: newTripData.location
+          ? "Your trip with location has been saved. Check the map to see it!"
+          : "Your new trip has been successfully created.",
       });
-      
+
       // If location was added, offer to go to map
       if (newTripData.location) {
         router.push("/map");
@@ -196,28 +199,28 @@ export default function NewTripPage() {
       }
 
     } catch (error: any) {
-        console.error("Error creating trip:", error);
-        
-        if (error.code && error.code.startsWith('storage/')) {
-            toast({
-                variant: "destructive",
-                title: "Storage Error",
-                description: error.message || "There was a problem uploading your thumbnail.",
-            });
-        } else {
-            const permissionError = new FirestorePermissionError({
-              path: `trips`,
-              operation: 'create',
-              requestResourceData: data
-            });
-            errorEmitter.emit('permission-error', permissionError);
+      console.error("Error creating trip:", error);
 
-            toast({
-                variant: "destructive",
-                title: "Error Creating Trip",
-                description: error.message || "There was a problem creating your trip. Please check your permissions and try again.",
-            });
-        }
+      if (error.code && error.code.startsWith('storage/')) {
+        toast({
+          variant: "destructive",
+          title: "Storage Error",
+          description: error.message || "There was a problem uploading your thumbnail.",
+        });
+      } else {
+        const permissionError = new FirestorePermissionError({
+          path: `trips`,
+          operation: 'create',
+          requestResourceData: data
+        });
+        errorEmitter.emit('permission-error', permissionError);
+
+        toast({
+          variant: "destructive",
+          title: "Error Creating Trip",
+          description: error.message || "There was a problem creating your trip. Please check your permissions and try again.",
+        });
+      }
     }
   };
 
@@ -349,24 +352,24 @@ export default function NewTripPage() {
                 />
               </div>
 
-               <FormField
+              <FormField
                 control={form.control}
                 name="thumbnail"
                 render={({ field: { onChange, ...rest } }) => (
                   <FormItem>
                     <FormLabel>Trip Thumbnail</FormLabel>
                     <FormControl>
-                        <div className="relative">
-                            <Paperclip className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input
-                                {...rest}
-                                value={undefined}
-                                type="file" 
-                                accept="image/*"
-                                className="pl-10"
-                                onChange={(e) => onChange(e.target.files)}
-                            />
-                        </div>
+                      <div className="relative">
+                        <Paperclip className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          {...rest}
+                          value={undefined}
+                          type="file"
+                          accept="image/*"
+                          className="pl-10"
+                          onChange={(e) => onChange(e.target.files)}
+                        />
+                      </div>
                     </FormControl>
                     <FormDescription>
                       Upload a cover image for your trip.
@@ -431,8 +434,8 @@ export default function NewTripPage() {
                           >
                             {field.value
                               ? visibilityOptions.find(
-                                  (option) => option.value === field.value
-                                )?.label
+                                (option) => option.value === field.value
+                              )?.label
                               : "Select visibility"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
@@ -441,30 +444,30 @@ export default function NewTripPage() {
                       <PopoverContent className="w-full p-0">
                         <Command>
                           <CommandInput placeholder="Search..." />
-                           <CommandList>
-                          <CommandEmpty>No results found.</CommandEmpty>
-                          <CommandGroup>
-                            {visibilityOptions.map((option) => (
-                              <CommandItem
-                                value={option.label}
-                                key={option.value}
-                                onSelect={() => {
-                                  form.setValue("visibility", option.value as "private" | "public" | "shared");
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    option.value === field.value
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  )}
-                                />
-                                {option.label}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                           </CommandList>
+                          <CommandList>
+                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandGroup>
+                              {visibilityOptions.map((option) => (
+                                <CommandItem
+                                  value={option.label}
+                                  key={option.value}
+                                  onSelect={() => {
+                                    form.setValue("visibility", option.value as "private" | "public" | "shared");
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      option.value === field.value
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                  {option.label}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
                         </Command>
                       </PopoverContent>
                     </Popover>
@@ -500,4 +503,3 @@ export default function NewTripPage() {
   );
 }
 
-    
