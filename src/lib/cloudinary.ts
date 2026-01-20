@@ -1,6 +1,6 @@
 const CLOUD_NAME = 'dbtxwousd';
 const API_KEY = '387868558519787';
-const UPLOAD_PRESET = 'trip_photos';  // Using existing upload preset
+const UPLOAD_PRESET = 'miniproject';  // Using existing upload preset
 
 export async function uploadToCloudinary(file: File) {
   const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`;

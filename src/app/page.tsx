@@ -2,172 +2,243 @@
 
 import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Camera, Map, Share2, Sparkles, Users, Route, Globe2, ChevronDown, LayoutDashboard } from 'lucide-react';
+import { MapPin, Calendar, Users, ArrowRight, Search, Play, Star } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
-import { useUser } from '@/firebase';
-
-// Dynamically import Three.js background with no SSR
-const ThreeBackground = dynamic(() => import('@/components/three-background').then(mod => ({ default: mod.ThreeBackground })), {
-  ssr: false,
-});
-
-const features = [
-  {
-    icon: <Camera className="h-8 w-8 text-primary" />,
-    title: 'Multimedia Entries',
-    description: 'Attach photos and videos to bring your travel stories to life.',
-  },
-  {
-    icon: <Map className="h-8 w-8 text-primary" />,
-    title: 'Route Visualization',
-    description: 'See your journey unfold on an interactive map.',
-  },
-  {
-    icon: <Share2 className="h-8 w-8 text-primary" />,
-    title: 'Selective Sharing',
-    description: 'Keep your diaries private or share your adventures with friends and family.',
-  },
-  {
-    icon: <Sparkles className="h-8 w-8 text-primary" />,
-    title: 'AI Suggestions',
-    description: 'Get AI-powered recommendations for your next destination.',
-  },
-];
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collectionGroup, query, where, limit } from 'firebase/firestore';
+import { Trip } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { StoriesBar } from '@/components/social/stories-bar';
+import { ReelsGrid } from '@/components/social/reels-grid';
 
 export default function HomePage() {
-  const heroImage = PlaceHolderImages.find(p => p.id === 'hero-image');
   const rootRef = useRef<HTMLDivElement | null>(null);
   const { user } = useUser();
+  const firestore = useFirestore();
 
-  useEffect(() => {
-    const prefersReduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) return;
-    let ctx: any;
-    (async () => {
-      const { gsap } = await import('gsap');
-      if (!rootRef.current) return;
-      const tl = gsap.timeline();
-      tl.fromTo('.hero-title', { y: 30, opacity: 0, scale: 0.9 }, { y: 0, opacity: 1, scale: 1, duration: 0.8, ease: 'power3.out' })
-        .fromTo('.hero-subtitle', { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out' }, '-=0.4')
-        .fromTo('.hero-badge', { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(1.7)' }, '-=0.3')
-        .fromTo('.hero-cta', { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out', stagger: 0.1 }, '-=0.3')
-        .fromTo('.hero-stats', { y: 15, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out', stagger: 0.08 }, '-=0.2')
-        .fromTo('.scroll-indicator', { y: -10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }, '-=0.2');
-      
-      // Floating animation for gradient blobs
-      gsap.to('.blob-1', { y: 30, x: 20, duration: 4, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-      gsap.to('.blob-2', { y: -30, x: -20, duration: 5, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-      
-      ctx = gsap.context(() => {
-        const cards = rootRef.current!.querySelectorAll('.feature-card');
-        if (cards.length) {
-          gsap.set(cards, { y: 30, opacity: 0, scale: 0.95 });
-          gsap.to(cards, { y: 0, opacity: 1, scale: 1, duration: 0.6, stagger: 0.1, ease: 'power2.out', delay: 0.3 });
-        }
-      }, rootRef);
-    })();
-    return () => ctx?.revert?.();
-  }, []);
+  // Query for public trips (limit to 3 for the "Top Rated" section to match design)
+  const publicTripsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collectionGroup(firestore, 'trips'), where('visibility', '==', 'public'), limit(3));
+  }, [firestore]);
+
+  const { data: publicTrips, isLoading: isLoadingPublicTrips } = useCollection<Trip>(publicTripsQuery);
 
   return (
-    <div ref={rootRef} className="flex flex-col min-h-screen">
-      <ThreeBackground />
-      <main className="flex-1">
-        <section className="relative w-full h-[70vh] md:h-[80vh] flex items-center justify-center text-center overflow-hidden bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900">
-          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50" />
-          <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-cyan-500/30 blur-3xl opacity-70 blob-1" />
-          <div className="pointer-events-none absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-pink-500/30 blur-3xl opacity-70 blob-2" />
-          <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full bg-purple-500/20 blur-3xl opacity-50" />
-          <div className="relative z-10 container px-4 md:px-6">
-            <div className="max-w-3xl mx-auto space-y-4">
-              <h1 className="hero-title font-headline text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl drop-shadow-2xl">
-                <span className="inline-block hover:scale-110 transition-transform duration-300 bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">Wander</span>
-                <span className="inline-block hover:scale-110 transition-transform duration-300 bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent animate-pulse">Lust</span>
-              </h1>
-              <p className="hero-subtitle text-lg text-gray-200 md:text-xl drop-shadow-lg">
-                Your Digital Travel Diary. <span className="font-semibold text-white">Beautifully simple</span>, powerfully personal.
-              </p>
-              <div className="flex items-center justify-center gap-2 hero-badge">
-                <span className="inline-flex items-center rounded-full bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-500/20 px-4 py-1.5 text-sm font-medium text-white ring-2 ring-cyan-400/30 backdrop-blur-md hover:ring-cyan-400/50 hover:scale-105 transition-all duration-300 cursor-default shadow-lg shadow-cyan-500/20">
-                  <Sparkles className="mr-1.5 h-4 w-4 text-cyan-300 animate-pulse" /> AI‑powered planning
-                </span>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                {user ? (
-                  <Button asChild size="lg" className="hero-cta bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 hover:from-cyan-600 hover:via-blue-600 hover:to-purple-600 text-white font-bold hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 group border-0">
-                    <Link href="/dashboard">
-                      <LayoutDashboard className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-                      Go to Dashboard
-                    </Link>
-                  </Button>
-                ) : (
-                  <>
-                    <Button asChild size="lg" className="hero-cta bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 hover:from-cyan-600 hover:via-blue-600 hover:to-purple-600 text-white font-bold hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 group border-0">
-                      <Link href="/signup">
-                        Get Started
-                        <Sparkles className="ml-2 h-4 w-4 group-hover:rotate-12 group-hover:scale-125 transition-transform" />
-                      </Link>
-                    </Button>
-                    <Button asChild size="lg" className="hero-cta bg-white/10 hover:bg-white/20 text-white font-semibold hover:scale-105 hover:shadow-xl transition-all duration-300 backdrop-blur-md border-2 border-white/30 hover:border-white/50">
-                      <Link href="/login">Log In</Link>
-                    </Button>
-                  </>
-                )}
-              </div>
-              <div className="mx-auto grid grid-cols-3 gap-4 pt-2 text-gray-200">
-                <div className="hero-stats flex items-center justify-center gap-2 hover:scale-110 transition-transform duration-300 cursor-default p-3 rounded-lg hover:bg-white/10 backdrop-blur-sm">
-                  <Users className="h-5 w-5 text-cyan-400" />
-                  <div className="text-sm"><span className="font-bold text-white bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">10k+</span> travelers</div>
-                </div>
-                <div className="hero-stats flex items-center justify-center gap-2 hover:scale-110 transition-transform duration-300 cursor-default p-3 rounded-lg hover:bg-white/10 backdrop-blur-sm">
-                  <Route className="h-5 w-5 text-blue-400" />
-                  <div className="text-sm"><span className="font-bold text-white bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">25k+</span> routes</div>
-                </div>
-                <div className="hero-stats flex items-center justify-center gap-2 hover:scale-110 transition-transform duration-300 cursor-default p-3 rounded-lg hover:bg-white/10 backdrop-blur-sm">
-                  <Globe2 className="h-5 w-5 text-purple-400" />
-                  <div className="text-sm"><span className="font-bold text-white bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">120+</span> countries</div>
-                </div>
-              </div>
+    <div ref={rootRef} className="flex flex-col min-h-screen bg-gradient-to-b from-[#0f172a] to-black text-white font-sans selection:bg-orange-500 selection:text-white">
+
+      {/* 1. HERO SECTION */}
+      <section className="relative w-full h-[100vh] flex flex-col items-center justify-center text-center overflow-hidden">
+        {/* Background Video */}
+        <div className="absolute inset-0 z-0">
+          <iframe
+            className="w-full h-full object-cover scale-[1.35] pointer-events-none opacity-80"
+            src="https://www.youtube.com/embed/zHYcM9mQiac?autoplay=1&mute=1&controls=0&loop=1&playlist=zHYcM9mQiac&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+          {/* Gradient Overlay for smooth transition to dark body */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-[#0f172a]" />
+        </div>
+
+        {/* Hero Content - REMOVED as per user request */}
+        {/* <div className="relative z-10 container px-4 flex flex-col items-center gap-8 mt-[-50px] animate-in fade-in zoom-in duration-1000"> ... </div> */}
+
+      </section>
+
+      {/* 2. STORIES & REELS SECTION */}
+      <section className="py-20 bg-[#050505] relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 space-y-16">
+          {/* Gradient Divider */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+          {/* Stories */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between px-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                <div className="w-1 h-8 bg-gradient-to-b from-orange-400 to-red-600 rounded-full" />
+                Travel Stories
+              </h3>
             </div>
+            <StoriesBar />
           </div>
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 scroll-indicator">
-            <Link href="#features" className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-white ring-2 ring-cyan-400/30 hover:ring-cyan-400/50 backdrop-blur-md transition-all duration-300 hover:scale-110 animate-bounce shadow-lg shadow-cyan-500/20">
-              <ChevronDown className="h-6 w-6" />
-            </Link>
-          </div>
-        </section>
-        <section id="features" className="py-12 md:py-24 bg-gradient-to-b from-background via-blue-50/30 to-background dark:via-blue-950/10">
-          <div className="container px-4 md:px-6">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">Powerful Features</h2>
-              <p className="text-muted-foreground text-lg">Everything you need to document your adventures</p>
+
+          {/* Reels */}
+          <ReelsGrid />
+        </div>
+      </section>
+
+      {/* 3. WHY CHOOSE US SECTION */}
+      <section className="py-32 bg-[#050505] container mx-auto px-4 sm:px-6 relative overflow-hidden">
+        {/* Decorative blobs */}
+        <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-orange-500/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-[100px] pointer-events-none" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center relative z-10">
+
+          {/* Left Content */}
+          <div className="space-y-10">
+            <div className="inline-block px-4 py-1.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 font-bold text-sm tracking-wide uppercase">
+              Our Promise
             </div>
-            <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-              {features.map((feature, index) => (
-                <Card key={index} className="feature-card bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 dark:from-gray-900 dark:via-blue-950/20 dark:to-purple-950/20 backdrop-blur-sm border-2 border-blue-200/50 dark:border-blue-800/50 shadow-lg hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:scale-105 hover:-translate-y-2 group cursor-pointer">
-                  <CardContent className="p-6 flex flex-col items-center text-center gap-4">
-                    <div className="p-3 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 group-hover:from-cyan-500/30 group-hover:to-purple-500/30 transition-all duration-300 group-hover:rotate-6 group-hover:scale-110 transform shadow-lg">
-                      {feature.icon}
-                    </div>
-                    <h3 className="text-xl font-headline font-semibold group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">{feature.title}</h3>
-                    <p className="text-muted-foreground group-hover:text-foreground transition-colors duration-300">{feature.description}</p>
-                  </CardContent>
-                </Card>
+            <h2 className="text-4xl md:text-6xl font-bold text-white leading-[1.1] tracking-tight">
+              Why Choose WanderLust <br /> For Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-200">Journey?</span>
+            </h2>
+            <p className="text-white/60 text-lg leading-relaxed font-light">
+              We're a trusted digital travel partner that brings the best travel experiences to specific destinations around the world. We offer exclusive tools, route tracking, and unforgettable adventures.
+            </p>
+
+            <ul className="space-y-5 pt-4">
+              {['Top Destinations', 'Flexible Travel Packages', 'Expert Travel Guides', 'Affordable & Transparent Pricing'].map((item) => (
+                <li key={item} className="flex items-center text-white/90 font-medium text-lg">
+                  <div className="w-2 h-2 rounded-full bg-orange-500 mr-4 shadow-[0_0_10px_rgba(249,115,22,0.5)]" /> {item}
+                </li>
               ))}
+            </ul>
+
+            <Button className="mt-8 rounded-full h-14 px-10 bg-white text-black hover:bg-orange-500 hover:text-white transition-all duration-300 font-bold text-md">
+              Read Our Story <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Right Images (Arch Layout) - Dark Theme Adapted */}
+          <div className="relative h-[650px] w-full hidden lg:block">
+            {/* Main Tall Arch Image */}
+            <div className="absolute top-0 right-10 w-[300px] h-[550px] rounded-t-[150px] rounded-b-[30px] overflow-hidden shadow-2xl border border-white/10 z-10 transition-transform hover:-translate-y-4 duration-700 bg-gray-900 group">
+              <Image
+                src="https://images.unsplash.com/photo-1528629297340-d1d466945dc5?q=80&w=1000&auto=format&fit=crop" // Japan
+                alt="Japan"
+                fill
+                className="object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-60" />
+              <div className="absolute bottom-8 left-8 right-8">
+                <div className="bg-white/10 backdrop-blur-md px-5 py-4 rounded-2xl border border-white/10">
+                  <div className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1">Gateway to</div>
+                  <div className="text-xl font-bold text-white">Unforgettable Journeys</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Secondary Circle/Arch Image */}
+            <div className="absolute bottom-10 left-0 w-[320px] h-[360px] rounded-t-[180px] rounded-b-[30px] overflow-hidden shadow-2xl border border-white/10 z-0 bg-gray-800 grayscale hover:grayscale-0 transition-all duration-700">
+              <Image
+                src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=1000&auto=format&fit=crop" // Ancient ruins
+                alt="Travel"
+                fill
+                className="object-cover opacity-70 hover:opacity-100 transition-opacity"
+              />
+              <div className="absolute top-10 right-10 bg-orange-600 text-white rounded-full w-24 h-24 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(234,88,12,0.4)] z-20">
+                <span className="text-3xl font-bold">25+</span>
+                <span className="text-[10px] uppercase font-bold text-white/80 tracking-wider">Years</span>
+              </div>
             </div>
           </div>
-        </section>
-      </main>
-      <footer className="bg-gradient-to-r from-blue-900 via-purple-900 to-pink-900 py-6">
-        <div className="container mx-auto px-4 md:px-6 text-center">
-          <p className="text-white/80">&copy; {new Date().getFullYear()} <span className="font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">WanderLust</span>. All rights reserved.</p>
+        </div>
+      </section>
+
+      {/* 4. LOGO STRIP */}
+      <div className="py-16 bg-[#050505] border-y border-white/5 overflow-hidden">
+        <div className="container mx-auto px-6 opacity-40 hover:opacity-100 transition-opacity duration-700 flex justify-between items-center gap-10 flex-wrap">
+          {/* Text placeholder for brands */}
+          <span className="text-xl font-bold text-white/30 uppercase tracking-widest">Trusted Partners</span>
+          <div className="flex gap-16 font-bold text-white/50 text-2xl items-center">
+            <span>RaraRoots</span>
+            <span>ORBIT INC.</span>
+            <span>HousePool</span>
+            <span>ProCircle</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. FEATURED DESTINATIONS */}
+      <section className="py-32 container mx-auto px-4 sm:px-6">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+          <div>
+            <h3 className="text-orange-500 font-bold uppercase tracking-[0.2em] mb-3 text-sm">Top Rated Destinations</h3>
+            <h2 className="text-5xl font-bold text-white leading-tight">For Your Next <span className="text-white/50">Adventure.</span></h2>
+          </div>
+          <Link href="/explore">
+            <Button variant="outline" className="rounded-full bg-transparent border-white/20 text-white hover:bg-white hover:text-black transition-all px-8 h-12">
+              Explore More <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Custom Trip Card Grid matching design (Tall Arch Cards) */}
+        {isLoadingPublicTrips ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-[550px] w-full rounded-[40px] bg-white/5" />
+            ))}
+          </div>
+        ) : publicTrips && publicTrips.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {publicTrips.map((trip, idx) => {
+              const placeholder = PlaceHolderImages.find(p => p.id === trip.coverPhotoId) || PlaceHolderImages[0];
+              const imgUrl = trip.coverPhotoURL || placeholder.imageUrl;
+
+              return (
+                <div key={trip.id} className="group relative h-[550px] w-full rounded-[40px] overflow-hidden cursor-pointer bg-gray-900 border border-white/5 transition-all duration-700 hover:-translate-y-2">
+                  <Link href={`/trips/${trip.id}`} className="block w-full h-full">
+                    <Image
+                      src={imgUrl}
+                      alt={trip.title}
+                      fill
+                      className="object-cover transition-transform duration-1000 group-hover:scale-110 opacity-70 group-hover:opacity-100"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/50 to-transparent opacity-90" />
+
+                    <div className="absolute bottom-10 left-10 right-10 text-white transform transition-transform duration-500 group-hover:translate-y-[-10px]">
+                      <h3 className="text-4xl font-bold mb-3 leading-none tracking-tight">{trip.title}</h3>
+                      {trip.location?.name && (
+                        <div className="flex items-center text-orange-400 text-sm font-bold uppercase tracking-wider mb-4">
+                          <MapPin className="w-4 h-4 mr-2" /> {trip.location.name}
+                        </div>
+                      )}
+
+                      {/* Description sliding up */}
+                      <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-[grid-template-rows] duration-500">
+                        <div className="overflow-hidden">
+                          <p className="text-white/70 text-sm font-light leading-relaxed">
+                            {trip.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="absolute top-6 right-6 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-bold text-white border border-white/20 uppercase tracking-widest">
+                      {idx === 0 ? 'Top Pick' : 'Trending'}
+                    </div>
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-20 bg-white/5 rounded-[40px] border border-white/5">
+            <p className="text-xl text-white/40">No popular destinations found right now.</p>
+          </div>
+        )}
+      </section>
+
+      {/* FOOTER */}
+      <footer className="bg-black text-white/40 py-20 border-t border-white/5">
+        <div className="container mx-auto px-6 text-center">
+          <div className="mb-8">
+            <span className="text-3xl font-bold text-white tracking-widest uppercase">Wander<span className="text-orange-500">Lust.</span></span>
+          </div>
+          <div className="flex justify-center gap-10 mb-12 text-sm font-bold uppercase tracking-widest">
+            <Link href="#" className="hover:text-white transition-colors">About</Link>
+            <Link href="#" className="hover:text-white transition-colors">Services</Link>
+            <Link href="#" className="hover:text-white transition-colors">Destinations</Link>
+            <Link href="#" className="hover:text-white transition-colors">Contact</Link>
+          </div>
+          <p className="text-xs font-mono">&copy; {new Date().getFullYear()} WanderLust Inc. All rights reserved.</p>
         </div>
       </footer>
     </div>
   );
 }
-
