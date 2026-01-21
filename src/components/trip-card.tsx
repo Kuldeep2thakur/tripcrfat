@@ -11,6 +11,8 @@ import { MoreVertical, Share2, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useUser, useFirestore } from '@/firebase';
+import { useState } from 'react';
+import { ShareTripDialog } from './share-trip-dialog';
 
 
 type TripCardProps = {
@@ -45,7 +47,7 @@ export function TripCard({ trip }: TripCardProps) {
   const coverPhotoURL = trip.coverPhotoURL || placeholderPhoto?.imageUrl;
   const coverPhotoAlt = placeholderPhoto?.description || 'Trip cover image';
   const coverPhotoHint = placeholderPhoto?.imageHint || 'travel landscape';
-  
+
   const { user } = useUser();
   const isOwner = user?.uid === trip.ownerId;
   const firestore = useFirestore();
@@ -74,23 +76,12 @@ export function TripCard({ trip }: TripCardProps) {
     }
   };
 
-  const onShareTrip = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const link = `${origin}/trips/${trip.id}`;
-      await navigator.clipboard.writeText(link);
-      window.alert(`Share link copied: ${link}`);
-    } catch {
-      window.alert('Could not copy link');
-    }
-  };
+  const [shareOpen, setShareOpen] = useState(false);
 
 
   return (
-    <Card 
-      className="flex flex-col overflow-hidden rounded-xl border bg-card/80 backdrop-blur group shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 cursor-pointer"
+    <Card
+      className="flex flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm group transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] cursor-pointer"
       onClick={handleCardClick}
     >
       <CardHeader className="p-0 relative">
@@ -101,67 +92,64 @@ export function TripCard({ trip }: TripCardProps) {
               alt={coverPhotoAlt}
               width={600}
               height={400}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 group-hover:opacity-100"
               data-ai-hint={coverPhotoHint}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent opacity-80" />
+
             {trip.location?.name && (
-              <div className="absolute left-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white px-3 py-1.5 text-xs font-medium border border-white/20 group-hover:bg-black/70 transition-all">
-                <MapPin className="h-3.5 w-3.5" />
+              <div className="absolute left-4 bottom-4 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md text-white px-3 py-1.5 text-xs font-bold border border-white/10 group-hover:border-orange-500/50 transition-colors uppercase tracking-wider">
+                <MapPin className="h-3 w-3 text-orange-500" />
                 <span className="line-clamp-1 max-w-[200px]">{trip.location.name}</span>
               </div>
             )}
           </div>
         )}
-        <div className="absolute top-2 right-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <Badge variant="secondary" className="capitalize flex items-center gap-1.5">
+        <div className="absolute top-3 right-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <Badge variant="secondary" className="capitalize flex items-center gap-1.5 bg-black/60 backdrop-blur text-white border-white/10 hover:bg-black/80">
             <VisibilityIcon visibility={trip.visibility} />
             {trip.visibility}
           </Badge>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="rounded-md bg-black/40 text-white p-1.5 hover:bg-black/60">
+              <button className="rounded-full bg-black/40 text-white p-2 hover:bg-orange-500 transition-colors backdrop-blur-sm border border-white/10">
                 <MoreVertical className="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {trip.visibility === 'shared' && (
-                <DropdownMenuItem onClick={onShareTrip} className="flex items-center gap-2">
-                  <Share2 className="h-4 w-4" /> Share
-                </DropdownMenuItem>
-              )}
+            <DropdownMenuContent align="end" className="bg-[#0f172a] border-white/10 text-white">
+              <DropdownMenuItem onSelect={() => setShareOpen(true)} className="flex items-center gap-2 focus:bg-white/10 focus:text-white cursor-pointer">
+                <Share2 className="h-4 w-4" /> Share Trip
+              </DropdownMenuItem>
               {isOwner && (
-                <DropdownMenuItem onClick={onDeleteTrip} className="text-destructive flex items-center gap-2">
+                <DropdownMenuItem onClick={onDeleteTrip} className="text-red-400 focus:bg-red-500/10 focus:text-red-400 flex items-center gap-2 cursor-pointer">
                   <Trash2 className="h-4 w-4" /> Delete Trip
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-         {isOwner && <Badge variant="default" className="absolute top-2 left-2">My Trip</Badge>}
+        {isOwner && <Badge className="absolute top-3 left-3 bg-orange-500 hover:bg-orange-600 text-white border-none shadow-lg">My Trip</Badge>}
       </CardHeader>
-      <CardContent className="p-4 flex-grow">
-        <CardTitle className="font-headline text-lg mb-2 hover:text-primary transition-colors">
+      <CardContent className="p-5 flex-grow space-y-3">
+        <CardTitle className="font-bold text-xl text-white group-hover:text-orange-400 transition-colors leading-tight">
           {trip.title}
         </CardTitle>
-        <div className="flex items-center text-sm text-muted-foreground mb-3">
-          <Calendar className="h-4 w-4 mr-2" />
-          <span>{trip.startDate} - {trip.endDate}</span>
+        <div className="flex items-center text-sm text-white/50 font-medium">
+          <Calendar className="h-4 w-4 mr-2 text-white/30" />
+          <span>{trip.startDate ? new Date(trip.startDate).toLocaleDateString() : 'No date'}</span>
         </div>
-        {trip.location?.name && (
-          <div className="flex items-center text-sm text-muted-foreground mb-3">
-            <MapPin className="h-4 w-4 mr-2" />
-            <span className="line-clamp-1">{trip.location.name}</span>
-          </div>
-        )}
-        <p className="text-sm text-muted-foreground line-clamp-3">{trip.description}</p>
+
+        <p className="text-sm text-white/60 line-clamp-2 leading-relaxed">{trip.description || 'No description provided.'}</p>
       </CardContent>
-      <CardFooter className="p-4 flex justify-between items-center">
-         <SharedWithAvatars trip={trip} />
-        <div className="group/cta text-primary ml-auto inline-flex items-center text-sm font-medium">
-          View Trip <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+      <CardFooter className="p-5 pt-0 flex justify-between items-center border-t border-white/5 mt-auto">
+        <div className="pt-4">
+          <SharedWithAvatars trip={trip} />
+        </div>
+        <div className="pt-4 group/cta text-orange-400 ml-auto inline-flex items-center text-sm font-bold uppercase tracking-wider">
+          View <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover/cta:translate-x-1" />
         </div>
       </CardFooter>
-    </Card>
+      <ShareTripDialog trip={trip} open={shareOpen} onOpenChange={setShareOpen} />
+    </Card >
   );
 }

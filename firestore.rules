@@ -29,10 +29,15 @@ service cloud.firestore {
         allow read: if isSignedIn() && (
           isOwner() || 
           resource.data.visibility == 'public' ||
-          (resource.data.visibility == 'shared' && resource.data.sharedWith.hasAny([request.auth.uid]))
+          (resource.data.sharedWith.hasAny([request.auth.uid]))
         );
         match /entries/{entryId} {
-           allow read, write: if isSignedIn() && isOwner();
+           // Allow owner AND shared users to read/write entries
+           // We verify shared status by checking the parent trip document
+           allow read, write: if isSignedIn() && (
+             isOwner() || 
+             get(/databases/$(database)/documents/users/$(userId)/trips/$(tripId)).data.sharedWith.hasAny([request.auth.uid])
+           );
         }
       }
     }

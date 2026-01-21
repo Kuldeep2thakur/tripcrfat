@@ -134,37 +134,28 @@ export function Navbar() {
   const isHomePage = pathname === '/';
 
   // "Transparent Style": Active on Home Page ALWAYS (regardless of scroll).
-  // Active on other pages ONLY if specific conditions met (but here we default to standard).
+  // Active on other pages text is white but background is blurred dark.
   const useTransparentStyle = isHomePage;
 
-  // Background Logic:
-  // - Home: Always Transparent (fixed)
-  // - Other: Sticky + Solid/Blurred
-  const useSolidBackground = !isHomePage;
-
   return (
-    <header className={`${isHomePage ? 'fixed' : 'sticky'} top-0 z-50 w-full transition-all duration-500 border-b ${useSolidBackground
-      ? 'bg-background/80 backdrop-blur-md shadow-md border-border/40'
-      : 'bg-transparent border-transparent'
+    <header className={`fixed top-0 z-50 w-full transition-all duration-500 border-b ${isHomePage
+        ? 'bg-transparent border-transparent'
+        : 'bg-[#0f172a]/80 backdrop-blur-md border-white/5 shadow-lg shadow-black/20'
       }`}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className={`flex items-center justify-between transition-all duration-500 ${useTransparentStyle ? 'h-24' : 'h-16'}`}>
+        <div className={`flex items-center justify-between transition-all duration-500 ${isHomePage ? 'h-24' : 'h-20'}`}>
 
           {/* Logo */}
           <Link
             href="/"
-            className={`flex items-center gap-2 font-headline font-bold transition-all duration-500 hover:scale-105 group 
-              ${useTransparentStyle ? 'text-white tracking-widest text-2xl' : 'text-foreground tracking-tight text-xl'}
-            `}
+            className="flex items-center gap-2 font-headline font-bold transition-all duration-500 hover:scale-105 group text-white"
           >
             {/* Icon: Hidden on Home, visible otherwise */}
             <MapPin
-              className={`transition-all duration-500 group-hover:rotate-12 
-                ${useTransparentStyle ? 'w-0 h-0 opacity-0' : 'w-6 h-6 opacity-100 text-primary'}
-              `}
+              className={`transition-all duration-500 group-hover:rotate-12 ${isHomePage ? 'w-0 h-0 opacity-0' : 'w-6 h-6 opacity-100 text-orange-500'}`}
             />
 
-            <span className={useTransparentStyle ? "uppercase font-bold" : "bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"}>
+            <span className={isHomePage ? "uppercase font-bold tracking-widest text-2xl" : "text-xl tracking-tight"}>
               WanderLust
             </span>
           </Link>
@@ -177,14 +168,14 @@ export function Navbar() {
                 ? pathname === link.href
                 : pathname?.startsWith(link.href);
 
-              // Dynamic Classes for Transitions
-              const textClasses = useTransparentStyle
-                ? 'text-[11px] uppercase tracking-[0.25em] font-bold text-white/90 hover:text-white' // Home Style (Always)
-                : 'text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'; // Other Pages
+              // Standardized Dark Theme Classes
+              const textClasses = isHomePage
+                ? 'text-[11px] uppercase tracking-[0.25em] font-bold text-white/90 hover:text-white'
+                : 'text-sm font-medium text-white/60 hover:text-white hover:bg-white/10';
 
-              const activeClasses = useTransparentStyle
+              const activeClasses = isHomePage
                 ? 'text-white'
-                : 'bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary';
+                : 'bg-white/10 text-white hover:bg-white/20';
 
               return (
                 <Link
@@ -193,13 +184,11 @@ export function Navbar() {
                   className={`relative flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-500 group ${isActive ? activeClasses : textClasses
                     }`}
                 >
-                  {/* Icon: Only show when NOT on home */}
-                  <Icon className={`w-4 h-4 transition-all duration-500 ${useTransparentStyle ? 'w-0 opacity-0' : 'w-4 opacity-100'}`} />
-
+                  <Icon className={`w-4 h-4 transition-all duration-500 ${isHomePage ? 'w-0 opacity-0' : 'w-4 opacity-100'}`} />
                   {link.label}
 
                   {/* Underline Indicator for Home only */}
-                  {isActive && useTransparentStyle && (
+                  {isActive && isHomePage && (
                     <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-8 h-[2px] bg-white rounded-full" />
                   )}
                 </Link>
@@ -211,26 +200,25 @@ export function Navbar() {
           <div className="flex items-center gap-3">
             {!user ? (
               <>
-                {/* Login Button Transition */}
                 <Button
                   asChild
                   size="sm"
+                  variant={isHomePage ? "default" : "secondary"}
                   className={`transition-all duration-500 px-6 
-                      ${useTransparentStyle
+                      ${isHomePage
                       ? 'bg-transparent border border-white/40 text-white hover:bg-white hover:text-black hover:border-white rounded-md uppercase text-[11px] font-bold tracking-widest h-10'
-                      : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm h-9 text-sm font-medium rounded-md'
+                      : 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm h-9 text-sm font-medium rounded-full border-none'
                     }
                     `}
                 >
                   <Link href="/login">
-                    {useTransparentStyle ? 'Log In' : 'Sign up'}
-                    {useTransparentStyle && <LogIn className="ml-2 w-3 h-3" />}
+                    {isHomePage ? 'Log In' : 'Sign up'}
+                    {isHomePage && <LogIn className="ml-2 w-3 h-3" />}
                   </Link>
                 </Button>
 
-                {/* Extra Sign Up Button (Only visible on other pages) */}
-                {!useTransparentStyle && (
-                  <Button asChild variant="ghost" size="sm" className="hidden sm:flex">
+                {!isHomePage && (
+                  <Button asChild variant="ghost" size="sm" className="hidden sm:flex text-white hover:bg-white/10 rounded-full">
                     <Link href="/login">Log in</Link>
                   </Button>
                 )}
@@ -243,7 +231,7 @@ export function Navbar() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={`relative transition-all duration-200 hover:scale-110 ${useTransparentStyle ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-accent'}`}
+                      className="relative transition-all duration-200 hover:scale-110 text-white hover:bg-white/10 rounded-full"
                     >
                       <Bell className="w-5 h-5" />
                       {unreadCount > 0 && (
@@ -253,13 +241,15 @@ export function Navbar() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0 bg-zinc-900 border-zinc-800 text-white" align="end">
-                    <div className="p-4 border-b border-zinc-800">
-                      <h3 className="font-bold">Notifications</h3>
+                  <PopoverContent className="w-80 p-0 bg-[#0f172a] border-white/10 text-white shadow-2xl backdrop-blur-xl" align="end">
+                    <div className="p-4 border-b border-white/10 bg-white/5">
+                      <h3 className="font-bold flex items-center gap-2">
+                        <Bell className="h-4 w-4 text-orange-500" /> Notifications
+                      </h3>
                     </div>
-                    <div className="max-h-[400px] overflow-y-auto">
+                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                       {!notifications || notifications.length === 0 ? (
-                        <div className="p-8 text-center text-zinc-500">
+                        <div className="p-8 text-center text-white/30">
                           <Bell className="w-12 h-12 mx-auto mb-2 opacity-20" />
                           <p className="text-sm">No notifications yet</p>
                         </div>
@@ -271,26 +261,26 @@ export function Navbar() {
                               markAsRead(notification.id);
                               setNotificationsOpen(false);
                             }}
-                            className={`flex items-start gap-3 p-4 hover:bg-zinc-800/50 cursor-pointer transition-colors border-b border-zinc-800/50 ${!notification.read ? 'bg-zinc-800/30' : ''
+                            className={`flex items-start gap-3 p-4 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5 ${!notification.read ? 'bg-white/5 border-l-2 border-l-orange-500' : ''
                               }`}
                           >
-                            <Avatar className="w-10 h-10 flex-shrink-0">
+                            <Avatar className="w-10 h-10 flex-shrink-0 border border-white/10">
                               <AvatarImage src={notification.actorPhoto} />
-                              <AvatarFallback className="bg-zinc-700 text-white text-xs">
+                              <AvatarFallback className="bg-zinc-800 text-white text-xs">
                                 {notification.actorName[0]}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm">
-                                <span className="font-semibold">{notification.actorName}</span>{' '}
-                                <span className="text-zinc-400">{notification.message}</span>
+                              <p className="text-sm text-white/90">
+                                <span className="font-bold text-white">{notification.actorName}</span>{' '}
+                                <span className="text-white/60">{notification.message}</span>
                               </p>
-                              <p className="text-xs text-zinc-500 mt-1">
+                              <p className="text-xs text-white/40 mt-1">
                                 {timeAgo(notification.createdAt)}
                               </p>
                             </div>
                             {!notification.read && (
-                              <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2" />
+                              <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0 mt-2 shadow-[0_0_8px_rgba(249,115,22,0.6)]" />
                             )}
                           </div>
                         ))
@@ -301,10 +291,10 @@ export function Navbar() {
 
                 {/* Profile Avatar */}
                 <Link href="/profile">
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full transition-all duration-200 hover:scale-110">
-                    <Avatar className={`h-10 w-10 border-2 transition-all duration-500 hover:shadow-lg ${useTransparentStyle ? 'border-white/50 hover:border-white' : 'border-primary/20 hover:border-primary/40'}`}>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full transition-all duration-200 hover:scale-110 p-0">
+                    <Avatar className={`h-10 w-10 border-2 transition-all duration-500 hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] ${isHomePage ? 'border-white/50 hover:border-white' : 'border-orange-500/50 hover:border-orange-500'}`}>
                       <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
-                      <AvatarFallback className={`transition-all duration-500 ${useTransparentStyle ? 'bg-white/20 text-white backdrop-blur-md' : 'bg-primary/10 text-primary font-semibold'}`}>
+                      <AvatarFallback className="bg-zinc-800 text-white font-bold backdrop-blur-md">
                         {getUserInitials()}
                       </AvatarFallback>
                     </Avatar>
@@ -316,12 +306,12 @@ export function Navbar() {
             {/* Mobile Menu */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className={`md:hidden ${useTransparentStyle ? 'text-white hover:bg-white/10' : 'text-foreground'}`}>
+                <Button variant="ghost" size="icon" className="md:hidden text-white hover:bg-white/10">
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Toggle menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+              <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-[#0f172a] border-white/10 text-white">
                 <nav className="flex flex-col gap-4 mt-8">
                   {links.map(link => {
                     const Icon = link.icon;
@@ -334,9 +324,9 @@ export function Navbar() {
                         key={link.href}
                         href={link.href}
                         onClick={() => setMobileMenuOpen(false)}
-                        className={`flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-200 hover:translate-x-2 group ${isActive
-                          ? 'bg-primary/10 text-primary shadow-sm'
-                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                        className={`flex items-center gap-3 px-4 py-3 text-base font-medium rounded-xl transition-all duration-200 group ${isActive
+                          ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                          : 'text-white/60 hover:bg-white/10 hover:text-white'
                           }`}
                       >
                         <Icon className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
@@ -347,13 +337,13 @@ export function Navbar() {
 
                   {!user && (
                     <>
-                      <div className="my-4 border-t" />
-                      <Button asChild variant="outline" className="w-full">
+                      <div className="my-4 border-t border-white/10" />
+                      <Button asChild variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 bg-transparent">
                         <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
                           Log in
                         </Link>
                       </Button>
-                      <Button asChild className="w-full">
+                      <Button asChild className="w-full bg-orange-500 hover:bg-orange-600 text-white border-none">
                         <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
                           Sign up
                         </Link>

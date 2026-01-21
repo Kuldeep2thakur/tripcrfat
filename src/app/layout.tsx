@@ -32,7 +32,12 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning className={cn(inter.className, "font-body")}>
+        import {GlobalBanner} from '@/components/global-banner';
+
+        ...
+
         <FirebaseClientProvider>
+          <GlobalBanner />
           <Navbar />
           {children}
         </FirebaseClientProvider>

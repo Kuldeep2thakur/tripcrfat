@@ -5,7 +5,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, orderBy, addDoc, limit, serverTimestamp, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc } from 'firebase/firestore';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { Button } from '@/components/ui/button';
-import { Plus, Video, Loader2, Heart, MessageCircle, Share2, Play, Volume2, VolumeX, X, Music, Type, Smile, ChevronRight, Check, MapPin, Upload, Palette, Sparkles, Bookmark, Send } from 'lucide-react';
+import { Plus, Video, Loader2, Heart, MessageCircle, Share2, Play, Volume2, VolumeX, X, Music, Type, Smile, ChevronRight, ChevronUp, ChevronDown, Check, MapPin, Upload, Palette, Sparkles, Bookmark, Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
@@ -470,6 +470,71 @@ export function ReelsGrid() {
         if (selectedReel) { setIsPlaying(true); setIsMuted(false); }
     }, [selectedReel]);
 
+    // Handle Keyboard Navigation
+    useEffect(() => {
+        if (!selectedReel) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                handlePrevReel();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                handleNextReel();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    });
+
+    // --- REEL NAVIGATION LOGIC ---
+    const wheelTimeout = useRef<any>(null);
+    const touchStart = useRef(0);
+
+    const handleNextReel = (e?: any) => {
+        if (e) e.stopPropagation();
+        if (!selectedReel || !reels || reels.length === 0) return;
+        const index = reels.findIndex(r => r.id === selectedReel.id);
+        const nextIndex = (index + 1) % reels.length;
+        setSelectedReel(reels[nextIndex]);
+    };
+
+    const handlePrevReel = (e?: any) => {
+        if (e) e.stopPropagation();
+        if (!selectedReel || !reels || reels.length === 0) return;
+        const index = reels.findIndex(r => r.id === selectedReel.id);
+        // If index is -1 (not found), default to 0. 
+        // Logic: (index - 1 + length) % length handles positive wrap around.
+        const prevIndex = (index - 1 + reels.length) % reels.length;
+        setSelectedReel(reels[prevIndex]);
+    };
+
+    const handleWheel = (e: React.WheelEvent) => {
+        if (wheelTimeout.current) return;
+        wheelTimeout.current = setTimeout(() => {
+            wheelTimeout.current = null;
+        }, 500); // 500ms cool down
+
+        if (e.deltaY > 50) {
+            handleNextReel();
+        } else if (e.deltaY < -50) {
+            handlePrevReel();
+        }
+    };
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        touchStart.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        const diff = touchStart.current - e.changedTouches[0].clientY;
+        if (Math.abs(diff) > 50) {
+            if (diff > 0) handleNextReel();
+            else handlePrevReel();
+        }
+    };
+    // ----------------------------
+
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between px-4">
@@ -772,7 +837,12 @@ export function ReelsGrid() {
                 <DialogContent className="p-0 border-0 bg-black max-w-[100vw] sm:max-w-[400px] h-[100dvh] sm:h-[85vh] flex items-center justify-center overflow-hidden rounded-none sm:rounded-2xl">
                     <DialogTitle className="sr-only">Viewing Reel</DialogTitle>
                     {selectedReel && (
-                        <div className="relative w-full h-full flex items-center justify-center bg-zinc-900 group/player">
+                        <div
+                            className="relative w-full h-full flex items-center justify-center bg-zinc-900 group/player"
+                            onWheel={handleWheel}
+                            onTouchStart={handleTouchStart}
+                            onTouchEnd={handleTouchEnd}
+                        >
                             <button onClick={() => setSelectedReel(null)} className="absolute top-4 left-4 z-50 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60"><X className="w-5 h-5" /></button>
                             <button onClick={toggleMute} className="absolute top-4 right-4 z-50 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60">{isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}</button>
 

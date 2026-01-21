@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Using Hugging Face Inference API (completely free!)
-// Using Meta's Llama model - actively maintained and free
-const HF_API_URL = 'https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct';
+// Initialize Gemini API
+const apiKey = process.env.GEMINI_API_KEY;
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const model = genAI ? genAI.getGenerativeModel({
+  model: "-2.5-flash",
+  generationConfig: { responseMimeType: "application/json" }
+}) : null;
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,139 +23,83 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check availability of Gemini API
+    if (!apiKey || !model) {
+      console.warn('GEMINI_API_KEY is missing. Using fallback.');
+      // Return fallback immediately if no key
+      return NextResponse.json({
+        fallback: true,
+        message: "Gemini API Key missing. Using fallback plan.",
+        fromDestination: fromDestination || '',
+        toDestination,
+        duration,
+        budget: budget || 'Moderate',
+        itinerary: generateFallbackItinerary(fromDestination, toDestination, duration, interests),
+        recommendations: generateFallbackRecommendations(toDestination, fromDestination),
+        tips: generateFallbackTips(toDestination, fromDestination)
+      });
+    }
+
     // Build the prompt
-    const routeInfo = fromDestination 
-      ? `from ${fromDestination} to ${toDestination}` 
+    const routeInfo = fromDestination
+      ? `from ${fromDestination} to ${toDestination}`
       : `to ${toDestination}`;
 
-    const prompt = `You are an expert travel planner. Create a detailed ${duration}-day trip plan ${routeInfo}.
+    const prompt = `Act as an expert local travel guide and logistics planner. Create a highly detailed, realistic, and personalized ${duration}-day trip itinerary ${routeInfo}.
 
-Trip Details:
-- Destination: ${toDestination}
-${fromDestination ? `- Starting from: ${fromDestination}` : ''}
-- Duration: ${duration} days
-${budget ? `- Budget: ${budget}` : ''}
-${travelers ? `- Number of travelers: ${travelers}` : ''}
-${interests ? `- Interests: ${interests}` : ''}
-${travelStyle ? `- Travel style: ${travelStyle}` : ''}
+**Trip Parameters:**
+- **Destination:** ${toDestination}
+${fromDestination ? `- **Origin:** ${fromDestination}` : ''}
+- **Duration:** ${duration} days
+- **Budget Level:** ${budget || 'Standard'}
+${travelers ? `- **Group Size:** ${travelers} people` : ''}
+${interests ? `- **Key Interests:** ${interests}` : ''}
+${travelStyle ? `- **Travel Style:** ${travelStyle}` : ''}
 
-Please provide a comprehensive trip plan in the following JSON format:
+**Requirements for Accuracy:**
+1.  **REAL PLACES ONLY:** Use actual names of existing hotels, restaurants (with cuisine type), transport hubs, and attractions. Do not use generic terms like "Local Restaurant" or "City Park".
+2.  **LOGISTICAL FLOW:** Ensure activities are geographically grouped to minimize travel time.
+3.  **TIMING:** Provide realistic time allocations for each activity.
+4.  **SPECIFICITY:** For "Accommodation", suggest 3 specific real hotels/hostels matching the budget. For "Dining", suggest specific real restaurants.
+
+**Output Format (Strict JSON):**
+You must return a JSON object with this exact schema:
 {
   "itinerary": [
     {
       "day": 1,
-      "title": "Day 1 title",
+      "title": "Short descriptive title for the day (e.g., 'Arrival & Downtown Exploration')",
       "activities": [
-        { "time": "Morning", "activity": "Activity description" },
-        { "time": "Afternoon", "activity": "Activity description" },
-        { "time": "Evening", "activity": "Activity description" }
+        { "time": "Morning (09:00 - 12:00)", "activity": "Specific activity description with real place names" },
+        { "time": "Afternoon (13:00 - 17:00)", "activity": "Specific activity description" },
+        { "time": "Evening (18:00 - 22:00)", "activity": "Specific activity description" }
       ]
     }
   ],
   "recommendations": {
-    "accommodation": ["recommendation 1", "recommendation 2", "recommendation 3"],
-    "dining": ["recommendation 1", "recommendation 2", "recommendation 3"],
-    "activities": ["recommendation 1", "recommendation 2", "recommendation 3"],
-    "transportation": ["recommendation 1", "recommendation 2", "recommendation 3"]
+    "accommodation": ["Real Hotel Name 1 - Brief why", "Real Hotel Name 2 - Brief why", "Real Hotel Name 3 - Brief why"],
+    "dining": ["Restaurant Name 1 (Cuisine) - Brief dish rec", "Restaurant Name 2 (Cuisine)", "Restaurant Name 3"],
+    "activities": ["Specific Attraction 1", "Specific Experience 2", "Specific Spot 3"],
+    "transportation": ["Best mode (e.g., Metro line X, Uber, Walking)", "Tips for tickets", "Airport transfer info"]
   },
-  "tips": ["tip 1", "tip 2", "tip 3", "tip 4", "tip 5"]
-}
+  "tips": ["Practical tip 1", "Practical tip 2", "Safety tip", "Cultural tip", "Budget tip"]
+}`;
 
-Important guidelines:
-${fromDestination ? `- Day 1 should include travel from ${fromDestination} to ${toDestination}` : ''}
-${fromDestination ? `- Last day should include return travel from ${toDestination} to ${fromDestination}` : ''}
-- Make recommendations specific to ${toDestination}
-- Consider the budget level if provided
-- Tailor activities to the stated interests
-- Provide practical, actionable advice
-- Include specific place names and attractions
-- Make the itinerary realistic and achievable
+    console.log('Calling Gemini API...');
 
-Return ONLY valid JSON, no markdown formatting or code blocks.`;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = response.text();
 
-    console.log('Calling Hugging Face API...');
-    
-    // Call Hugging Face API (no API key needed for public models!)
-    const response = await fetch(HF_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 2000,
-          temperature: 0.7,
-          top_p: 0.95,
-          return_full_text: false
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('HF API Error:', response.status, errorText);
-      
-      // If API fails, use fallback immediately
-      console.log('Using fallback generation due to API error');
-      return NextResponse.json({
-        fallback: true,
-        fromDestination: fromDestination || '',
-        toDestination,
-        duration,
-        budget: budget || 'Moderate',
-        itinerary: generateFallbackItinerary(fromDestination, toDestination, duration, interests),
-        recommendations: generateFallbackRecommendations(toDestination, fromDestination),
-        tips: generateFallbackTips(toDestination, fromDestination)
-      });
-    }
-
-    const result = await response.json();
-    console.log('HF API Response:', JSON.stringify(result).substring(0, 200));
-    
-    let text = '';
-    
-    if (Array.isArray(result) && result[0]?.generated_text) {
-      text = result[0].generated_text;
-    } else if (result.generated_text) {
-      text = result.generated_text;
-    } else if (result.error) {
-      console.error('HF API returned error:', result.error);
-      // Use fallback if API returns error
-      return NextResponse.json({
-        fallback: true,
-        fromDestination: fromDestination || '',
-        toDestination,
-        duration,
-        budget: budget || 'Moderate',
-        itinerary: generateFallbackItinerary(fromDestination, toDestination, duration, interests),
-        recommendations: generateFallbackRecommendations(toDestination, fromDestination),
-        tips: generateFallbackTips(toDestination, fromDestination)
-      });
-    } else {
-      console.error('Unexpected response format:', result);
-      // Use fallback for unexpected format
-      return NextResponse.json({
-        fallback: true,
-        fromDestination: fromDestination || '',
-        toDestination,
-        duration,
-        budget: budget || 'Moderate',
-        itinerary: generateFallbackItinerary(fromDestination, toDestination, duration, interests),
-        recommendations: generateFallbackRecommendations(toDestination, fromDestination),
-        tips: generateFallbackTips(toDestination, fromDestination)
-      });
-    }
-    
-    console.log('AI response received, length:', text.length);
+    console.log('Gemini response received, length:', text.length);
 
     // Clean up the response - remove markdown code blocks if present
     text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
     try {
       const planData = JSON.parse(text);
-      console.log('Successfully parsed AI response');
-      
+      console.log('Successfully parsed Gemini response');
+
       // Add the original form data to the response
       const completePlan = {
         fromDestination: fromDestination || '',
@@ -163,7 +112,7 @@ Return ONLY valid JSON, no markdown formatting or code blocks.`;
       return NextResponse.json(completePlan);
     } catch (parseError) {
       console.error('Failed to parse Gemini response:', text);
-      
+
       // Return a fallback response if parsing fails
       return NextResponse.json({
         error: 'Failed to parse AI response',
@@ -178,11 +127,23 @@ Return ONLY valid JSON, no markdown formatting or code blocks.`;
       });
     }
   } catch (error: any) {
-    console.error('Error generating trip plan:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to generate trip plan' },
-      { status: 500 }
-    );
+    console.error('Error generating trip plan with Gemini:', error);
+
+    // Check for quota exceeded or other specific Gemini errors
+    const isQuotaError = error.message?.includes('429') || error.message?.includes('quota');
+
+    return NextResponse.json({
+      fallback: true,
+      error: error.message || 'Failed to generate trip plan',
+      isQuotaError,
+      fromDestination: '', // Default values for proper typing if needed, extracted inside try block ideally
+      toDestination: '',
+      duration: '',
+      budget: 'Moderate',
+      itinerary: generateFallbackItinerary('', '', '3', ''), // Rudimentary fallback if crash happens early
+      recommendations: generateFallbackRecommendations('', ''),
+      tips: generateFallbackTips('', '')
+    });
   }
 }
 
@@ -201,9 +162,9 @@ function generateFallbackItinerary(from: string, to: string, duration: string, i
   };
 
   const interestKey = interests?.toLowerCase().includes('culture') ? 'culture' :
-                      interests?.toLowerCase().includes('food') ? 'food' :
-                      interests?.toLowerCase().includes('adventure') ? 'adventure' :
-                      interests?.toLowerCase().includes('relax') ? 'relaxation' : 'default';
+    interests?.toLowerCase().includes('food') ? 'food' :
+      interests?.toLowerCase().includes('adventure') ? 'adventure' :
+        interests?.toLowerCase().includes('relax') ? 'relaxation' : 'default';
 
   for (let i = 1; i <= Math.min(days, 7); i++) {
     let dayTitle = `Day ${i}`;

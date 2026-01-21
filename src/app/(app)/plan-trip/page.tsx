@@ -71,12 +71,13 @@ export default function PlanTripPage() {
       }
 
       setGeneratedPlan(plan);
-      
+
       toast({
         title: plan.fallback ? 'Trip Plan Generated (Fallback)' : 'Trip Plan Generated!',
-        description: plan.fallback 
-          ? 'Using fallback plan. AI service may be temporarily unavailable.'
+        description: plan.fallback
+          ? (plan.message || 'Using fallback plan. AI service may be temporarily unavailable.')
           : 'Your AI-powered personalized trip plan is ready.',
+        variant: plan.fallback ? 'default' : 'default', // Keep default but maybe add an alert icon? Default is fine.
       });
     } catch (error: any) {
       console.error('Error generating trip plan:', error);
@@ -99,10 +100,10 @@ export default function PlanTripPage() {
       const endDate = new Date();
       endDate.setDate(startDate.getDate() + parseInt(formData.duration || '3'));
 
-      const tripTitle = generatedPlan.fromDestination 
+      const tripTitle = generatedPlan.fromDestination
         ? `Trip from ${generatedPlan.fromDestination} to ${generatedPlan.toDestination}`
         : `Trip to ${generatedPlan.toDestination}`;
-      
+
       const tripDescription = generatedPlan.fromDestination
         ? `Planned trip from ${generatedPlan.fromDestination} to ${generatedPlan.toDestination} for ${generatedPlan.duration} days`
         : `Planned trip to ${generatedPlan.toDestination} for ${generatedPlan.duration} days`;
@@ -142,7 +143,7 @@ export default function PlanTripPage() {
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-accent/20" />
         <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
-        
+
         <section className="relative px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-8">
@@ -339,7 +340,7 @@ export default function PlanTripPage() {
                       </Button>
                     </CardTitle>
                     <CardDescription>
-                      {generatedPlan.fromDestination 
+                      {generatedPlan.fromDestination
                         ? `${generatedPlan.duration} days: ${generatedPlan.fromDestination} → ${generatedPlan.toDestination}`
                         : `${generatedPlan.duration} days in ${generatedPlan.toDestination}`
                       }

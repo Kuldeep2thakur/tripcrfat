@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, MouseEvent as ReactMouseEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, MouseEvent as ReactMouseEvent } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, addDoc, limit, serverTimestamp, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { uploadToCloudinary } from '@/lib/cloudinary';
@@ -235,7 +235,9 @@ export function StoriesBar() {
     const [isUploading, setIsUploading] = useState(false);
 
     // View Story State
-    const [selectedStory, setSelectedStory] = useState<Story | null>(null);
+    const [viewingStories, setViewingStories] = useState<Story[] | null>(null);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const currentStory = viewingStories ? viewingStories[currentIndex] : null;
     const [progress, setProgress] = useState(0);
 
     // Create Story State
@@ -300,6 +302,19 @@ export function StoriesBar() {
 
     const { data: stories } = useCollection<Story>(storiesQuery);
 
+    // Group stories by author
+    const groupedStories = useMemo(() => {
+        if (!stories) return [];
+        const groups: Record<string, Story[]> = {};
+        stories.forEach(story => {
+            if (!groups[story.authorId]) {
+                groups[story.authorId] = [];
+            }
+            groups[story.authorId].push(story);
+        });
+        return Object.values(groups);
+    }, [stories]);
+
     useEffect(() => {
         if (newStoryFile) {
             const url = URL.createObjectURL(newStoryFile);
@@ -319,24 +334,45 @@ export function StoriesBar() {
     }, [newStoryFile]);
 
     useEffect(() => {
-        if (!selectedStory) {
+        if (!currentStory) {
             setProgress(0);
             return;
         }
-        const duration = selectedStory.mediaType === 'video' ? 10000 : 5000;
+        setProgress(0);
+        const duration = currentStory.mediaType === 'video' ? 10000 : 5000;
         const interval = 50;
         const increment = 100 / (duration / interval);
         const timer = setInterval(() => {
             setProgress((prev) => {
                 if (prev >= 100) {
                     clearInterval(timer);
+                    handleNextStory();
                     return 100;
                 }
                 return prev + increment;
             });
         }, interval);
         return () => clearInterval(timer);
-    }, [selectedStory]);
+    }, [currentStory]);
+
+    const handleNextStory = () => {
+        if (!viewingStories) return;
+        if (currentIndex < viewingStories.length - 1) {
+            setCurrentIndex(prev => prev + 1);
+        } else {
+            setViewingStories(null); // Close if last story
+            setCurrentIndex(0);
+        }
+    };
+
+    const handlePrevStory = () => {
+        if (currentIndex > 0) {
+            setCurrentIndex(prev => prev - 1);
+        } else {
+            // Restart or do nothing
+            setCurrentIndex(0);
+        }
+    };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -385,9 +421,9 @@ export function StoriesBar() {
 
     const handleToggleLike = async (e: ReactMouseEvent) => {
         e.stopPropagation();
-        if (!user || !firestore || !selectedStory) return;
-        const storyRef = doc(firestore, 'stories', selectedStory.id);
-        const isLiked = selectedStory.likes?.includes(user.uid);
+        if (!user || !firestore || !currentStory) return;
+        const storyRef = doc(firestore, 'stories', currentStory.id);
+        const isLiked = currentStory.likes?.includes(user.uid);
 
         try {
             if (isLiked) {
@@ -395,14 +431,14 @@ export function StoriesBar() {
             } else {
                 await updateDoc(storyRef, { likes: arrayUnion(user.uid) });
                 // Create notification if not liking own story
-                if (user.uid !== selectedStory.authorId) {
+                if (user.uid !== currentStory.authorId) {
                     await createNotification(firestore, {
-                        userId: selectedStory.authorId,
+                        userId: currentStory.authorId,
                         type: 'like',
                         actorId: user.uid,
                         actorName: user.displayName || 'User',
                         actorPhoto: user.photoURL || undefined,
-                        postId: selectedStory.id,
+                        postId: currentStory.id,
                         postType: 'story',
                         message: 'liked your story',
                     });
@@ -437,21 +473,24 @@ export function StoriesBar() {
                     </div>
                 )}
 
-                {stories?.map((story) => (
-                    <div key={story.id} className="flex flex-col items-center gap-2 cursor-pointer group" onClick={() => setSelectedStory(story)}>
-                        <div className={`w-16 h-16 sm:w-20 sm:h-20 p-[2px] rounded-full bg-gradient-to-tr ${story.likes?.includes(user?.uid || '') ? 'from-pink-500 to-red-500' : 'from-yellow-400 via-orange-500 to-purple-600'} animate-in zoom-in spin-in-3 duration-500`}>
-                            <div className="w-full h-full p-[2px] bg-[#050505] rounded-full">
-                                <Avatar className="w-full h-full rounded-full object-cover">
-                                    <AvatarImage src={story.authorPhoto} />
-                                    <AvatarFallback>{story.authorName[0]}</AvatarFallback>
-                                </Avatar>
+                {groupedStories?.map((group) => {
+                    const story = group[0]; // Show first story as preview
+                    return (
+                        <div key={story.id} className="flex flex-col items-center gap-2 cursor-pointer group" onClick={() => { setViewingStories(group); setCurrentIndex(0); }}>
+                            <div className={`w-16 h-16 sm:w-20 sm:h-20 p-[2px] rounded-full bg-gradient-to-tr ${story.likes?.includes(user?.uid || '') ? 'from-pink-500 to-red-500' : 'from-yellow-400 via-orange-500 to-purple-600'} animate-in zoom-in spin-in-3 duration-500`}>
+                                <div className="w-full h-full p-[2px] bg-[#050505] rounded-full">
+                                    <Avatar className="w-full h-full rounded-full object-cover">
+                                        <AvatarImage src={story.authorPhoto} />
+                                        <AvatarFallback>{story.authorName[0]}</AvatarFallback>
+                                    </Avatar>
+                                </div>
                             </div>
+                            <span className="text-xs font-medium text-white/60 truncate max-w-[70px] group-hover:text-white transition-colors">
+                                {story.authorName.split(' ')[0]}
+                            </span>
                         </div>
-                        <span className="text-xs font-medium text-white/60 truncate max-w-[70px] group-hover:text-white transition-colors">
-                            {story.authorName.split(' ')[0]}
-                        </span>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* CREATE STORY DIALOG */}
@@ -671,80 +710,92 @@ export function StoriesBar() {
             </Dialog>
 
             {/* VIEW STORY DIALOG */}
-            <Dialog open={!!selectedStory} onOpenChange={(open) => !open && setSelectedStory(null)}>
+            <Dialog open={!!currentStory} onOpenChange={(open) => !open && setViewingStories(null)}>
                 <DialogContent className="p-0 border-0 bg-black max-w-[100vw] sm:max-w-[450px] h-[100dvh] sm:h-[85vh] flex items-center justify-center overflow-hidden rounded-none sm:rounded-2xl">
                     <DialogTitle className="sr-only">Viewing Story</DialogTitle>
-                    {selectedStory && (
-                        <div className="relative w-full h-full flex items-center justify-center bg-zinc-900">
+                    {currentStory && (
+                        <div className="relative w-full h-full flex items-center justify-center bg-zinc-900 select-none">
+
+                            {/* TAP ZONES */}
+                            <div className="absolute inset-y-0 left-0 w-[30%] z-40" onClick={handlePrevStory} />
+                            <div className="absolute inset-y-0 right-0 w-[70%] z-40" onClick={handleNextStory} />
 
                             {/* Progress & Header */}
                             <div className="absolute top-2 left-2 right-2 flex gap-1 z-50">
-                                <div className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
-                                    <div className="h-full bg-white transition-all duration-100 ease-linear" style={{ width: `${progress}%` }} />
-                                </div>
+                                {viewingStories?.map((s, idx) => (
+                                    <div key={s.id} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-white transition-all duration-100 ease-linear"
+                                            style={{
+                                                width: idx < currentIndex ? '100%' : (idx === currentIndex ? `${progress}%` : '0%')
+                                            }}
+                                        />
+                                    </div>
+                                ))}
                             </div>
                             <div className="absolute top-6 left-4 right-4 flex items-center justify-between z-50">
                                 <div className="flex items-center gap-3">
                                     <Avatar className="w-9 h-9 border border-white/20">
-                                        <AvatarImage src={selectedStory.authorPhoto} />
-                                        <AvatarFallback>{selectedStory.authorName[0]}</AvatarFallback>
+                                        <AvatarImage src={currentStory.authorPhoto} />
+                                        <AvatarFallback>{currentStory.authorName[0]}</AvatarFallback>
                                     </Avatar>
-                                    <span className="text-white font-bold text-sm drop-shadow-md">{selectedStory.authorName}</span>
+                                    <span className="text-white font-bold text-sm drop-shadow-md">{currentStory.authorName}</span>
+                                    <span className="text-white/60 text-xs shadow-black drop-shadow-md">{new Date(currentStory.createdAt?.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
-                                <button onClick={() => setSelectedStory(null)} className="p-2 bg-black/20 rounded-full text-white"><X className="w-5 h-5" /></button>
+                                <button onClick={() => setViewingStories(null)} className="p-2 bg-black/20 rounded-full text-white z-50 pointer-events-auto hover:bg-black/40"><X className="w-5 h-5" /></button>
                             </div>
 
-                            <div className="relative w-full h-full">
-                                {selectedStory.mediaType === 'video' ? (
-                                    <video src={selectedStory.mediaUrl} playsInline autoPlay className="w-full h-full object-cover" />
+                            <div className="relative w-full h-full pointer-events-none">
+                                {currentStory.mediaType === 'video' ? (
+                                    <video src={currentStory.mediaUrl} playsInline autoPlay className="w-full h-full object-cover" />
                                 ) : (
-                                    <Image src={selectedStory.mediaUrl} alt="Story" fill className="object-cover" priority />
+                                    <Image src={currentStory.mediaUrl} alt="Story" fill className="object-cover" priority />
                                 )}
 
                                 {/* RENDER SAVED METADATA OVERLAYS */}
-                                {selectedStory.overlayText && (
+                                {currentStory.overlayText && (
                                     <div
-                                        className={`absolute z-10 pointer-events-none whitespace-nowrap ${selectedStory.textStyle?.animation}`}
+                                        className={`absolute z-10 whitespace-nowrap ${currentStory.textStyle?.animation}`}
                                         style={{
-                                            left: `${selectedStory.textPos?.x || 50}%`,
-                                            top: `${selectedStory.textPos?.y || 50}%`,
+                                            left: `${currentStory.textPos?.x || 50}%`,
+                                            top: `${currentStory.textPos?.y || 50}%`,
                                             transform: 'translate(-50%, -50%)',
                                         }}
                                     >
                                         <h2 className={`text-xl md:text-3xl lg:text-4xl text-center px-4 py-2 rounded-xl border border-transparent 
-                                            ${selectedStory.textStyle?.font} 
-                                            ${selectedStory.textStyle?.colorClass}
-                                            ${selectedStory.textStyle?.bg ? 'bg-black/60 backdrop-blur-md shadow-xl border-white/10' : 'drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]'}
+                                            ${currentStory.textStyle?.font} 
+                                            ${currentStory.textStyle?.colorClass}
+                                            ${currentStory.textStyle?.bg ? 'bg-black/60 backdrop-blur-md shadow-xl border-white/10' : 'drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]'}
                                         `}>
-                                            {selectedStory.overlayText}
+                                            {currentStory.overlayText}
                                         </h2>
                                     </div>
                                 )}
-                                {selectedStory.sticker && (
-                                    <div className="absolute z-10 pointer-events-none text-6xl md:text-8xl drop-shadow-lg" style={{ left: `${selectedStory.stickerPos?.x || 50}%`, top: `${selectedStory.stickerPos?.y || 30}%`, transform: 'translate(-50%, -50%)' }}>
-                                        {selectedStory.sticker}
+                                {currentStory.sticker && (
+                                    <div className="absolute z-10 text-6xl md:text-8xl drop-shadow-lg" style={{ left: `${currentStory.stickerPos?.x || 50}%`, top: `${currentStory.stickerPos?.y || 30}%`, transform: 'translate(-50%, -50%)' }}>
+                                        {currentStory.sticker}
                                     </div>
                                 )}
-                                {selectedStory.musicTrack && (
+                                {currentStory.musicTrack && (
                                     <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2 text-white/90 text-xs font-medium border border-white/10 z-10 animate-in fade-in slide-in-from-top-4 duration-500">
-                                        <Music className="w-3 h-3 animate-bounce" /> {selectedStory.musicTrack}
+                                        <Music className="w-3 h-3 animate-bounce" /> {currentStory.musicTrack}
                                     </div>
                                 )}
                             </div>
 
 
-                            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent z-40 flex items-center gap-4">
-                                <div className="h-10 w-full rounded-full border border-white/30 bg-white/10 flex items-center px-4 text-white/70 text-sm">Reply...</div>
-                                <button className="p-2 text-white transition-transform active:scale-90" onClick={handleToggleLike}>
-                                    <Heart className={`w-7 h-7 stroke-[1.5] ${selectedStory.likes?.includes(user?.uid || '') ? 'fill-pink-500 text-pink-500' : ''}`} />
+                            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent z-50 flex items-center gap-4 pointer-events-auto">
+                                <div className="h-10 w-full rounded-full border border-white/30 bg-white/10 flex items-center px-4 text-white/70 text-sm backdrop-blur-sm">Reply...</div>
+                                <button className="p-2 text-white transition-transform active:scale-90 hover:scale-110" onClick={handleToggleLike}>
+                                    <Heart className={`w-7 h-7 stroke-[1.5] ${currentStory.likes?.includes(user?.uid || '') ? 'fill-pink-500 text-pink-500' : ''}`} />
                                 </button>
                                 <Sheet>
                                     <SheetTrigger asChild>
-                                        <button className="p-2 text-white"><MessageCircle className="w-7 h-7 stroke-[1.5]" /></button>
+                                        <button className="p-2 text-white hover:scale-110 transition-transform"><MessageCircle className="w-7 h-7 stroke-[1.5]" /></button>
                                     </SheetTrigger>
-                                    <SheetContent side="bottom" className="h-[60vh] sm:h-[500px] p-0 border-0 rounded-t-3xl sm:rounded-3xl m-0 sm:m-4 bg-transparent shadow-none">
+                                    <SheetContent side="bottom" className="h-[60vh] sm:h-[500px] p-0 border-0 rounded-t-3xl sm:rounded-3xl m-0 sm:m-4 bg-transparent shadow-none" onOpenAutoFocus={(e) => e.preventDefault()}>
                                         <SheetTitle className="sr-only">Comments</SheetTitle>
-                                        <StoryComments storyId={selectedStory.id} storyAuthorId={selectedStory.authorId} />
+                                        <StoryComments storyId={currentStory.id} storyAuthorId={currentStory.authorId} />
                                     </SheetContent>
                                 </Sheet>
                             </div>
