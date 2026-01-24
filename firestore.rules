@@ -6,6 +6,11 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
+    
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
 
     // --- COLLECTION GROUP QUERIES ---
     match /{path=**}/trips/{tripId} {
@@ -17,10 +22,10 @@ service cloud.firestore {
 
     // --- DOCUMENT SPECIFIC RULES ---
 
-    // Users: Public Read (for Profiles), Owner Write
+    // Users: Public Read (for Profiles), Owner Write, Admin Write
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       
       match /trips/{tripId} {
         function isOwner() { return request.auth.uid == userId; }
@@ -90,6 +95,13 @@ service cloud.firestore {
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
       // Users can delete their own notifications
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    
+    // --- ADMIN CONFIG ---
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn() && isAdmin();
     }
   }
 }

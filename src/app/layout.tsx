@@ -5,6 +5,7 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { FirebaseClientProvider } from '@/firebase';
 import { Navbar } from '@/components/layout/navbar';
+import { GlobalBanner } from '@/components/global-banner';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -32,10 +33,6 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning className={cn(inter.className, "font-body")}>
-        import {GlobalBanner} from '@/components/global-banner';
-
-        ...
-
         <FirebaseClientProvider>
           <GlobalBanner />
           <Navbar />
