@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useDoc } from '@/firebase';
-import { collection, query, orderBy, limit, doc, updateDoc, setDoc, getDoc, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, doc, updateDoc, setDoc, getDoc, where, getDocs, deleteDoc, collectionGroup } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -36,6 +36,10 @@ export default function AdminPage() {
     // Users State
     const [usersList, setUsersList] = useState<User[]>([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
+
+    // Trips State
+    const [loadingTrips, setLoadingTrips] = useState(false);
+    const [allTrips, setAllTrips] = useState<Trip[]>([]);
 
     // Check Admin Role
     useEffect(() => {
@@ -113,6 +117,40 @@ export default function AdminPage() {
         setLoadingUsers(false);
     };
 
+    const fetchTrips = async () => {
+        if (!firestore) return;
+        setLoadingTrips(true);
+        try {
+            // Fetch ALL trips using Collection Group Query
+            const q = query(collectionGroup(firestore, 'trips'), orderBy('startDate', 'desc'), limit(50));
+            const snap = await getDocs(q);
+            const list: Trip[] = [];
+            snap.forEach(d => {
+                const data = d.data();
+                // Ensure ownerId exists or fallback
+                list.push({ id: d.id, ...data, tripRef: d.ref, ownerId: data.ownerId || 'unknown' } as Trip);
+            });
+            setAllTrips(list);
+        } catch (e) { console.error("Failed to fetch trips", e); }
+        setLoadingTrips(false);
+    };
+
+    const deleteTrip = async (trip: Trip) => {
+        if (!firestore || !trip.tripRef) return;
+        if (!window.confirm(`Delete trip "${trip.title}" PERMANENTLY?`)) return;
+        try {
+            await deleteDoc(trip.tripRef);
+            setAllTrips(prev => prev.filter(t => t.id !== trip.id));
+        } catch (e) {
+            console.error(e);
+            alert("Failed to delete trip. Check console.");
+        }
+    };
+
+    // Derived Trip Lists
+    const publicTrips = allTrips.filter(t => t.visibility === 'public');
+    const privateTrips = allTrips.filter(t => t.visibility !== 'public');
+
     const handleSaveConfig = async () => {
         if (!firestore) return;
         setSavingConfig(true);
@@ -170,6 +208,7 @@ export default function AdminPage() {
                 <TabsList className="bg-white/5 border border-white/10 p-1 w-full md:w-auto overflow-x-auto justify-start">
                     <TabsTrigger value="overview" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white">Overview</TabsTrigger>
                     <TabsTrigger value="users" onClick={fetchUsers} className="data-[state=active]:bg-orange-500 data-[state=active]:text-white">Users</TabsTrigger>
+                    <TabsTrigger value="trips" onClick={fetchTrips} className="data-[state=active]:bg-orange-500 data-[state=active]:text-white">Trips</TabsTrigger>
                     <TabsTrigger value="ui" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white">Global UI / Settings</TabsTrigger>
                 </TabsList>
 
@@ -277,6 +316,80 @@ export default function AdminPage() {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                {/* TRIPS TAB */}
+                <TabsContent value="trips" className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* PUBLIC TRIPS */}
+                        <Card className="bg-white/5 border-white/10 text-white">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5 text-green-400" /> Public Trips</CardTitle>
+                                <CardDescription className="text-white/50">Trips visible to everyone.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {loadingTrips ? <Loader2 className="animate-spin" /> : (
+                                    <div className="border border-white/10 rounded-md overflow-hidden bg-black/20">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow className="border-white/10 hover:bg-white/5"><TableHead className="text-white">Title</TableHead><TableHead className="text-white text-right">Action</TableHead></TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {publicTrips.length === 0 && <TableRow><TableCell colSpan={2} className="text-center text-white/40">No public trips.</TableCell></TableRow>}
+                                                {publicTrips.map(trip => (
+                                                    <TableRow key={trip.id} className="border-white/10 hover:bg-white/5">
+                                                        <TableCell className="font-medium text-white max-w-[150px] truncate" title={trip.title}>
+                                                            {trip.title}
+                                                            <div className="text-xs text-white/40">{trip.ownerId}</div>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Button variant="ghost" size="icon" onClick={() => deleteTrip(trip)} className="text-white/40 hover:text-red-400 hover:bg-red-400/10"><Trash2 className="h-4 w-4" /></Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* PRIVATE / SHARED TRIPS */}
+                        <Card className="bg-white/5 border-white/10 text-white">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-orange-400" /> Private & Shared</CardTitle>
+                                <CardDescription className="text-white/50">Restricted visibility trips.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {loadingTrips ? <Loader2 className="animate-spin" /> : (
+                                    <div className="border border-white/10 rounded-md overflow-hidden bg-black/20">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow className="border-white/10 hover:bg-white/5"><TableHead className="text-white">Title</TableHead><TableHead className="text-white">Type</TableHead><TableHead className="text-white text-right">Action</TableHead></TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {privateTrips.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-white/40">No private trips.</TableCell></TableRow>}
+                                                {privateTrips.map(trip => (
+                                                    <TableRow key={trip.id} className="border-white/10 hover:bg-white/5">
+                                                        <TableCell className="font-medium text-white max-w-[150px] truncate" title={trip.title}>
+                                                            {trip.title}
+                                                            <div className="text-xs text-white/40">{trip.ownerId}</div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge variant="outline" className="border-white/20 text-white/60 text-xs">{trip.visibility}</Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Button variant="ghost" size="icon" onClick={() => deleteTrip(trip)} className="text-white/40 hover:text-red-400 hover:bg-red-400/10"><Trash2 className="h-4 w-4" /></Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
                 </TabsContent>
 
                 {/* UI / SETTINGS TAB */}

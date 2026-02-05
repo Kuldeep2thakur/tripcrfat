@@ -28,6 +28,7 @@ export type User = {
   photoURL: string | null;
   createdAt: Timestamp;
   role?: 'admin' | 'user';
+  isBanned?: boolean;
   savedReels?: string[]; // Added from previous context
 };
 
