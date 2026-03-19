@@ -83,7 +83,10 @@ export function Navbar() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // Dynamic Brand Name
-  const { data: homeConfig } = useDoc(firestore ? doc(firestore, 'config', 'home') : null);
+  const homeConfigRef = useMemoFirebase(() => {
+    return firestore ? doc(firestore, 'config', 'home') : null;
+  }, [firestore]);
+  const { data: homeConfig } = useDoc(homeConfigRef);
   const brandName = homeConfig?.heroTitle || 'WanderLust';
 
   // Fetch Notifications
