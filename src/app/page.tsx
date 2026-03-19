@@ -7,16 +7,31 @@ import { MapPin, Calendar, Users, ArrowRight, Search, Play, Star } from 'lucide-
 import Image from 'next/image';
 import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query, where, limit } from 'firebase/firestore';
+import { collectionGroup, query, where, limit, doc, getDoc } from 'firebase/firestore';
 import { Trip } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StoriesBar } from '@/components/social/stories-bar';
 import { ReelsGrid } from '@/components/social/reels-grid';
+import { useState } from 'react';
 
 export default function HomePage() {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const { user } = useUser();
   const firestore = useFirestore();
+
+  const [homeConfig, setHomeConfig] = useState({
+    heroTitle: 'WanderLust',
+    heroSubtitle: 'Your Digital Travel Diary',
+    heroVideoId: 'zHYcM9mQiac',
+    showHeroText: true
+  });
+
+  useEffect(() => {
+    if (!firestore) return;
+    getDoc(doc(firestore, 'config', 'home')).then(snap => {
+      if (snap.exists()) setHomeConfig(snap.data() as any);
+    });
+  }, [firestore]);
 
   // Query for public trips (limit to 3 for the "Top Rated" section to match design)
   const publicTripsQuery = useMemoFirebase(() => {
@@ -35,7 +50,7 @@ export default function HomePage() {
         <div className="absolute inset-0 z-0">
           <iframe
             className="w-full h-full object-cover scale-[1.35] pointer-events-none opacity-80"
-            src="https://www.youtube.com/embed/zHYcM9mQiac?autoplay=1&mute=1&controls=0&loop=1&playlist=zHYcM9mQiac&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0"
+            src={`https://www.youtube.com/embed/${homeConfig.heroVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${homeConfig.heroVideoId}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />
@@ -43,8 +58,22 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-[#0f172a]" />
         </div>
 
-        {/* Hero Content - REMOVED as per user request */}
-        {/* <div className="relative z-10 container px-4 flex flex-col items-center gap-8 mt-[-50px] animate-in fade-in zoom-in duration-1000"> ... </div> */}
+        {/* Hero Content */}
+        {homeConfig.showHeroText && (
+          <div className="relative z-10 container px-4 flex flex-col items-center gap-6 mt-[-50px] animate-in fade-in zoom-in duration-1000 text-center">
+            <h1 className="text-6xl md:text-9xl font-black text-white tracking-tighter drop-shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+              {homeConfig.heroTitle}
+            </h1>
+            <p className="text-xl md:text-3xl text-white/90 font-light tracking-wide max-w-2xl drop-shadow-lg">
+              {homeConfig.heroSubtitle}
+            </p>
+            <Link href="/explore">
+              <Button className="mt-8 rounded-full h-14 px-10 bg-orange-600 hover:bg-orange-500 text-white transition-all duration-300 font-bold text-lg shadow-[0_0_20px_rgba(234,88,12,0.5)] hover:shadow-[0_0_40px_rgba(234,88,12,0.8)] border border-orange-400/50">
+                Start Exploring
+              </Button>
+            </Link>
+          </div>
+        )}
 
       </section>
 

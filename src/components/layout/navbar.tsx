@@ -18,7 +18,7 @@ import {
   Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useUser, useAuth, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useAuth, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import {
   DropdownMenu,
@@ -73,12 +73,18 @@ function timeAgo(timestamp: any): string {
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+
+  if (pathname?.startsWith('/admin')) return null;
   const { user } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  // Dynamic Brand Name
+  const { data: homeConfig } = useDoc(firestore ? doc(firestore, 'config', 'home') : null);
+  const brandName = homeConfig?.heroTitle || 'WanderLust';
 
   // Fetch Notifications
   const notificationsQuery = useMemoFirebase(() => {
@@ -139,8 +145,8 @@ export function Navbar() {
 
   return (
     <header className={`fixed top-0 z-50 w-full transition-all duration-500 border-b ${isHomePage
-        ? 'bg-transparent border-transparent'
-        : 'bg-[#0f172a]/80 backdrop-blur-md border-white/5 shadow-lg shadow-black/20'
+      ? 'bg-transparent border-transparent'
+      : 'bg-[#0f172a]/80 backdrop-blur-md border-white/5 shadow-lg shadow-black/20'
       }`}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className={`flex items-center justify-between transition-all duration-500 ${isHomePage ? 'h-24' : 'h-20'}`}>
@@ -156,7 +162,7 @@ export function Navbar() {
             />
 
             <span className={isHomePage ? "uppercase font-bold tracking-widest text-2xl" : "text-xl tracking-tight"}>
-              WanderLust
+              {brandName}
             </span>
           </Link>
 
