@@ -6,7 +6,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebas
 import { PlusCircle, Map, Calendar, TrendingUp, ArrowRight, FileText, MapPin, Compass, Sparkles, Wand2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { collection, query, orderBy, limit, getDocs, collectionGroup } from "firebase/firestore";
+import { collection, query, orderBy, limit, getDocs, collectionGroup, where } from "firebase/firestore";
 import Link from "next/link";
 import { Trip } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,16 +32,10 @@ export default function DashboardPage() {
         // Use collection group query to get all entries across all trips
         const entriesQuery = query(
           collectionGroup(firestore, 'entries'),
+          where('authorId', '==', user.uid)
         );
         const snapshot = await getDocs(entriesQuery);
-
-        // Filter entries that belong to this user
-        const userEntries = snapshot.docs.filter(doc => {
-          const data = doc.data();
-          return data.authorId === user.uid;
-        });
-
-        setTotalEntriesCount(userEntries.length);
+        setTotalEntriesCount(snapshot.size);
       } catch (error) {
         console.error('Error fetching entries count:', error);
         setTotalEntriesCount(0);

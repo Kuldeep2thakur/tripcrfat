@@ -8,14 +8,15 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // --- COLLECTION GROUP QUERIES ---
     match /{path=**}/trips/{tripId} {
-      allow read: if isSignedIn(); // TEMPORARY
-      allow delete: if isSignedIn(); // TEMPORARY
+      allow read: if resource.data.visibility == 'public' || isSignedIn();
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
     match /{path=**}/entries/{entryId} {
       allow read: if isSignedIn() && resource.data.authorId == request.auth.uid;
@@ -32,11 +33,10 @@ service cloud.firestore {
         function isOwner() { return request.auth.uid == userId; }
         allow update, delete: if isSignedIn() && isOwner();
         allow create: if isSignedIn() && isOwner();
-        allow read: if isSignedIn() && (
+        allow read: if resource.data.visibility == 'public' || (isSignedIn() && (
           isOwner() || 
-          resource.data.visibility == 'public' ||
           (resource.data.sharedWith.hasAny([request.auth.uid]))
-        );
+        ));
         match /entries/{entryId} {
            // Allow owner AND shared users to read/write entries
            // We verify shared status by checking the parent trip document
